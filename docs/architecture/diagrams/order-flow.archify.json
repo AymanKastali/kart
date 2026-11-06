@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Kart Order Flow Across Contexts",
+    "output": "docs/architecture/diagrams/order-flow.html",
+    "locale": "en",
+    "quality_profile": "standard",
+    "repository": {
+      "url": "https://github.com/AymanKastali/kart",
+      "provider": "github",
+      "revision": "10012ba8febdeea45d8c31b1e917b05007a833fb"
+    },
+    "legend": {
+      "entries": {
+        "dashed": {
+          "label": "Integration event (outbox → RabbitMQ)"
+        },
+        "emphasis": {
+          "label": "Synchronous call (contracts)"
+        }
+      }
+    },
+    "viewBox": [
+      1080,
+      1110
+    ],
+    "column_fit": "spread"
+  },
+  "participants": [
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "Customer",
+      "sublabel": "/v1/customer"
+    },
+    {
+      "id": "ordering",
+      "type": "backend",
+      "label": "Ordering",
+      "sublabel": "Core",
+      "sources": [
+        {
+          "path": "docs/architecture/overview.md"
+        }
+      ]
+    },
+    {
+      "id": "catalog",
+      "type": "frontend",
+      "label": "Catalog",
+      "sublabel": "Supporting"
+    },
+    {
+      "id": "offer",
+      "type": "backend",
+      "label": "Offer",
+      "sublabel": "Core"
+    },
+    {
+      "id": "payments",
+      "type": "cloud",
+      "label": "Payments",
+      "sublabel": "Generic",
+      "sources": [
+        {
+          "path": "docs/architecture/overview.md"
+        }
+      ]
+    },
+    {
+      "id": "stripe",
+      "type": "external",
+      "label": "Stripe",
+      "sublabel": "test mode"
+    },
+    {
+      "id": "fulfilment",
+      "type": "backend",
+      "label": "Fulfilment",
+      "sublabel": "Core",
+      "sources": [
+        {
+          "path": "docs/architecture/overview.md"
+        }
+      ]
+    },
+    {
+      "id": "ss",
+      "type": "frontend",
+      "label": "Settlement",
+      "sublabel": "Seller, Supporting"
+    },
+    {
+      "id": "notif",
+      "type": "cloud",
+      "label": "Notifications",
+      "sublabel": "Generic"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 470,
+      "label": "Checkout and card payment"
+    },
+    {
+      "from": 480,
+      "to": 780,
+      "label": "Shipments and delivery"
+    },
+    {
+      "from": 790,
+      "to": 1010,
+      "label": "Cancellation or rejection"
+    }
+  ],
+  "messages": [
+    {
+      "id": "checkout",
+      "from": "customer",
+      "to": "ordering",
+      "y": 165,
+      "label": "checkout",
+      "variant": "emphasis"
+    },
+    {
+      "id": "q-catalog",
+      "from": "ordering",
+      "to": "catalog",
+      "y": 193,
+      "label": "query Product, fee rate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "q-catalog-r",
+      "from": "catalog",
+      "to": "ordering",
+      "y": 221,
+      "label": "title, Category, rate",
+      "variant": "return"
+    },
+    {
+      "id": "reserve",
+      "from": "ordering",
+      "to": "offer",
+      "y": 249,
+      "label": "reserve stock",
+      "variant": "emphasis",
+      "note": "Order saved as placing; all or none"
+    },
+    {
+      "id": "reserved",
+      "from": "offer",
+      "to": "ordering",
+      "y": 315,
+      "label": "reserved",
+      "variant": "return"
+    },
+    {
+      "id": "start-pay",
+      "from": "ordering",
+      "to": "payments",
+      "y": 343,
+      "label": "start card payment",
+      "variant": "emphasis",
+      "note": "card only; COD confirmed now"
+    },
+    {
+      "id": "intent",
+      "from": "payments",
+      "to": "stripe",
+      "y": 398,
+      "label": "PaymentIntent (ACL)",
+      "variant": "security"
+    },
+    {
+      "id": "webhook",
+      "from": "stripe",
+      "to": "payments",
+      "y": 426,
+      "label": "webhook",
+      "variant": "return"
+    },
+    {
+      "id": "pay-ok",
+      "from": "payments",
+      "to": "ordering",
+      "y": 454,
+      "label": "payment.succeeded",
+      "variant": "dashed"
+    },
+    {
+      "id": "confirmed-f",
+      "from": "ordering",
+      "to": "fulfilment",
+      "y": 495,
+      "label": "order.confirmed",
+      "variant": "dashed",
+      "note": "one Shipment per Seller"
+    },
+    {
+      "id": "confirmed-ss",
+      "from": "ordering",
+      "to": "ss",
+      "y": 550,
+      "label": "order.confirmed",
+      "variant": "dashed",
+      "note": "gross + Referral Fee"
+    },
+    {
+      "id": "confirmed-n",
+      "from": "ordering",
+      "to": "notif",
+      "y": 605,
+      "label": "order.confirmed → email Sellers",
+      "variant": "dashed"
+    },
+    {
+      "id": "deliv-pay",
+      "from": "fulfilment",
+      "to": "payments",
+      "y": 645,
+      "label": "shipment.delivered",
+      "variant": "dashed",
+      "note": "simulated courier delivers"
+    },
+    {
+      "id": "deliv-ss",
+      "from": "fulfilment",
+      "to": "ss",
+      "y": 711,
+      "label": "shipment.delivered → Settlement final",
+      "variant": "dashed"
+    },
+    {
+      "id": "deliv-ord",
+      "from": "fulfilment",
+      "to": "ordering",
+      "y": 739,
+      "label": "shipment.delivered",
+      "variant": "dashed"
+    },
+    {
+      "id": "deliv-n",
+      "from": "fulfilment",
+      "to": "notif",
+      "y": 767,
+      "label": "email Customer",
+      "variant": "dashed"
+    },
+    {
+      "id": "cancel-offer",
+      "from": "fulfilment",
+      "to": "offer",
+      "y": 810,
+      "label": "shipment.cancelled / rejected",
+      "variant": "dashed",
+      "note": "release stock"
+    },
+    {
+      "id": "cancel-pay",
+      "from": "fulfilment",
+      "to": "payments",
+      "y": 865,
+      "label": "shipment.cancelled / rejected",
+      "variant": "dashed",
+      "note": "refund items + Delivery Charge"
+    },
+    {
+      "id": "cancel-ss",
+      "from": "fulfilment",
+      "to": "ss",
+      "y": 920,
+      "label": "discard Settlement",
+      "variant": "dashed"
+    },
+    {
+      "id": "cancel-ord",
+      "from": "fulfilment",
+      "to": "ordering",
+      "y": 948,
+      "label": "update derived status",
+      "variant": "dashed",
+      "note": "COD Fee waived if carried"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Synchronous",
+      "items": [
+        "Only checkout calls other contexts directly, through their contracts",
+        "Ordering never reads Discovery"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Choreography",
+      "items": [
+        "Everything after checkout is events, no orchestrator",
+        "Consumers dedupe by event id in their inbox"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Timeouts",
+      "items": [
+        "Unpaid card Orders cancelled after 30 min → order.cancelled → Offer releases stock",
+        "Scheduler retries Orders stuck in placing"
+      ]
+    }
+  ]
+}

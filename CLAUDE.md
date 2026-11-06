@@ -11,3 +11,7 @@ Default vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, 
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Architecture diagrams
+
+`docs/architecture/diagrams/` holds archify diagrams generated from `docs/architecture/context-map.md` and `docs/architecture/overview.md`. They must never be out of sync with those docs. Whenever a context, relationship, integration event or key flow changes, update the matching `.archify.json`, re-render its `.html`, and commit both with the doc change. See `docs/architecture/diagrams/README.md`.

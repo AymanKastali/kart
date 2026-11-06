@@ -25,6 +25,8 @@ Core contexts get rich domain models. Supporting and generic contexts stay as th
 
 Arrows point from upstream to downstream (the downstream context depends on the upstream one). Solid lines are synchronous calls through a context's published interface; dashed lines are integration events.
 
+An animated version is in [`diagrams/context-map.html`](diagrams/context-map.html). Any change to this map also updates that diagram, in the same commit (see [`diagrams/README.md`](diagrams/README.md)).
+
 ```mermaid
 flowchart LR
   subgraph External

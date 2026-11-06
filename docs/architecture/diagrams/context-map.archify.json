@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kart Context Map",
+    "output": "docs/architecture/diagrams/context-map.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "backend": {
+          "label": "Core context"
+        },
+        "frontend": {
+          "label": "Supporting context"
+        },
+        "cloud": {
+          "label": "Generic context"
+        },
+        "security": {
+          "label": "Generic (bought): Keycloak"
+        },
+        "external": {
+          "label": "External system"
+        }
+      }
+    },
+    "views": [
+      {
+        "id": "catalog-side",
+        "label": "Seller side: listing Products",
+        "focus": [
+          "so",
+          "catalog",
+          "offer",
+          "discovery"
+        ],
+        "note": "Seller approval unlocks Catalog and Offer; Discovery builds read models from their events."
+      },
+      {
+        "id": "checkout",
+        "label": "Checkout",
+        "focus": [
+          "ordering",
+          "offer",
+          "catalog",
+          "payments",
+          "stripe"
+        ],
+        "note": "Ordering asks the owners synchronously: Offer reserves stock, Catalog supplies fee rates, Payments starts card payment."
+      },
+      {
+        "id": "after-order",
+        "label": "After the Order",
+        "focus": [
+          "ordering",
+          "fulfilment",
+          "ss",
+          "payments",
+          "offer"
+        ],
+        "note": "order.confirmed creates Shipments; shipment events release stock, refund, and settle."
+      }
+    ],
+    "repository": {
+      "url": "https://github.com/AymanKastali/kart",
+      "provider": "github",
+      "revision": "10012ba8febdeea45d8c31b1e917b05007a833fb"
+    }
+  },
+  "components": [
+    {
+      "id": "catalog",
+      "type": "frontend",
+      "label": "Catalog",
+      "sublabel": "Products, Categories",
+      "tag": "Supporting",
+      "pos": [
+        330,
+        40
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "discovery",
+      "type": "frontend",
+      "label": "Discovery",
+      "sublabel": "search read models",
+      "tag": "Supporting",
+      "pos": [
+        640,
+        40
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "so",
+      "type": "frontend",
+      "label": "Seller Onboarding",
+      "sublabel": "Seller approval",
+      "tag": "Supporting",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "ss",
+      "type": "frontend",
+      "label": "Seller Settlement",
+      "sublabel": "one per Shipment",
+      "tag": "Supporting",
+      "pos": [
+        950,
+        200
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "identity",
+      "type": "security",
+      "label": "Identity",
+      "sublabel": "Keycloak OIDC",
+      "tag": "token → all contexts",
+      "pos": [
+        40,
+        360
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "offer",
+      "type": "backend",
+      "label": "Offer",
+      "sublabel": "price, stock",
+      "tag": "Core",
+      "pos": [
+        330,
+        360
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "ordering",
+      "type": "backend",
+      "label": "Ordering",
+      "sublabel": "Cart, checkout, Order",
+      "tag": "Core",
+      "pos": [
+        640,
+        360
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "fulfilment",
+      "type": "backend",
+      "label": "Fulfilment",
+      "sublabel": "Shipments, sim courier",
+      "tag": "Core",
+      "pos": [
+        950,
+        360
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "type": "cloud",
+      "label": "Notifications",
+      "sublabel": "emails",
+      "tag": "listens to all",
+      "pos": [
+        40,
+        540
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "type": "cloud",
+      "label": "Payments",
+      "sublabel": "card, refunds, COD",
+      "tag": "Generic",
+      "pos": [
+        640,
+        540
+      ],
+      "size": [
+        170,
+        72
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    },
+    {
+      "id": "stripe",
+      "type": "external",
+      "label": "Stripe",
+      "sublabel": "test mode",
+      "pos": [
+        640,
+        710
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/context-map.md"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "so-catalog",
+      "from": "so",
+      "to": "catalog",
+      "label": "seller.approved",
+      "variant": "dashed"
+    },
+    {
+      "id": "so-offer",
+      "from": "so",
+      "to": "offer",
+      "label": "seller.approved",
+      "variant": "dashed"
+    },
+    {
+      "id": "so-discovery",
+      "from": "so",
+      "to": "discovery",
+      "label": "seller.approved",
+      "variant": "dashed"
+    },
+    {
+      "id": "so-ss",
+      "from": "so",
+      "to": "ss",
+      "label": "seller.approved",
+      "variant": "dashed"
+    },
+    {
+      "id": "catalog-discovery",
+      "from": "catalog",
+      "to": "discovery",
+      "label": "product events",
+      "variant": "dashed"
+    },
+    {
+      "id": "catalog-offer",
+      "from": "catalog",
+      "to": "offer",
+      "label": "product.approved / rejected",
+      "variant": "dashed"
+    },
+    {
+      "id": "offer-discovery",
+      "from": "offer",
+      "to": "discovery",
+      "label": "offer events",
+      "variant": "dashed"
+    },
+    {
+      "id": "catalog-ordering",
+      "from": "catalog",
+      "to": "ordering",
+      "label": "query Product, fee rate",
+      "variant": "default"
+    },
+    {
+      "id": "offer-ordering",
+      "from": "offer",
+      "to": "ordering",
+      "label": "reserve stock",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ordering-offer",
+      "from": "ordering",
+      "to": "offer",
+      "label": "order.cancelled",
+      "variant": "dashed"
+    },
+    {
+      "id": "payments-ordering",
+      "from": "payments",
+      "to": "ordering",
+      "label": "start payment · payment.*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ordering-fulfilment",
+      "from": "ordering",
+      "to": "fulfilment",
+      "label": "order.confirmed",
+      "variant": "dashed"
+    },
+    {
+      "id": "ordering-ss",
+      "from": "ordering",
+      "to": "ss",
+      "label": "order.confirmed",
+      "variant": "dashed"
+    },
+    {
+      "id": "fulfilment-ordering",
+      "from": "fulfilment",
+      "to": "ordering",
+      "label": "shipment.*",
+      "variant": "dashed"
+    },
+    {
+      "id": "fulfilment-ss",
+      "from": "fulfilment",
+      "to": "ss",
+      "label": "shipment.*",
+      "variant": "dashed"
+    },
+    {
+      "id": "fulfilment-payments",
+      "from": "fulfilment",
+      "to": "payments",
+      "label": "shipment.*",
+      "variant": "dashed"
+    },
+    {
+      "id": "fulfilment-offer",
+      "from": "fulfilment",
+      "to": "offer",
+      "label": "shipment.cancelled / rejected",
+      "variant": "dashed"
+    },
+    {
+      "id": "payments-stripe",
+      "from": "payments",
+      "to": "stripe",
+      "label": "ACL",
+      "variant": "security"
+    },
+    {
+      "id": "identity-notifications",
+      "from": "identity",
+      "to": "notifications",
+      "label": "account.registered",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "How to read it",
+      "items": [
+        "Arrows point upstream → downstream",
+        "Solid: synchronous call through contracts",
+        "Dashed: integration event via outbox → RabbitMQ"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Relationships",
+      "items": [
+        "Offer, Catalog → Ordering: customer–supplier",
+        "Payments → Ordering: open host service",
+        "Ordering → Fulfilment: customer–supplier",
+        "Fulfilment → others: published language",
+        "Payments ↔ Stripe: anti-corruption layer"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Not drawn as arrows",
+      "items": [
+        "Identity is an open host service to every context (OIDC token)",
+        "Notifications also reacts to Ordering, Fulfilment, Seller Onboarding and Catalog events",
+        "Ordering never reads Discovery at checkout"
+      ]
+    }
+  ]
+}

@@ -89,6 +89,8 @@ Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.
 
 ## Key flows
 
+An animated sequence of these flows is in [`diagrams/order-flow.html`](diagrams/order-flow.html). Any change to a flow also updates that diagram, in the same commit (see [`diagrams/README.md`](diagrams/README.md)).
+
 ### Checkout
 
 Ordering coordinates checkout:
