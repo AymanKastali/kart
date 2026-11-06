@@ -23,49 +23,7 @@ Core contexts get rich domain models. Supporting and generic contexts stay as th
 
 ## Map
 
-Arrows point from upstream to downstream (the downstream context depends on the upstream one). Solid lines are synchronous calls through a context's published interface; dashed lines are integration events.
-
-An animated version is in [`diagrams/context-map.html`](diagrams/context-map.html). Any change to this map also updates that diagram, in the same commit (see [`diagrams/README.md`](diagrams/README.md)).
-
-```mermaid
-flowchart LR
-  subgraph External
-    Gateway[Stripe test mode]
-  end
-
-  Identity
-  SO[Seller Onboarding]
-  Catalog
-  Offer
-  Discovery
-  Ordering
-  Payments
-  Fulfilment
-  SS[Seller Settlement]
-  Notif[Notifications]
-
-  Identity -. account.registered .-> Notif
-  SO -. seller.approved .-> Catalog & Offer & Discovery & SS
-  Catalog -. product.approved / rejected .-> Offer
-  Catalog -. product events .-> Discovery
-  Offer -. offer events .-> Discovery
-
-  Offer -- "query offers, reserve stock" --> Ordering
-  Catalog -- "query Product, Referral Fee rate" --> Ordering
-  Payments -- "start card payment" --> Ordering
-  Payments -. payment.succeeded / failed .-> Ordering
-
-  Ordering -. order.confirmed .-> Fulfilment
-  Ordering -. order.cancelled .-> Offer
-  Ordering -. order.confirmed .-> SS
-
-  Fulfilment -. shipment.cancelled / rejected .-> Offer & Payments & Ordering & SS
-  Fulfilment -. shipment.delivered .-> Ordering & SS & Payments
-
-  Payments <-- ACL --> Gateway
-
-  Ordering & Fulfilment & SO & Catalog -. events .-> Notif
-```
+The map is drawn as an animated diagram in [`diagrams/context-map.html`](diagrams/context-map.html). Arrows point from upstream to downstream (the downstream context depends on the upstream one). Solid lines are synchronous calls through a context's published interface; dashed lines are integration events. The relationships table below is the source of truth. Any change to it also updates the diagram, in the same commit (see [`diagrams/README.md`](diagrams/README.md)).
 
 ## Relationships
 
