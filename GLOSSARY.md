@@ -53,16 +53,32 @@ _Avoid_: Department, section, collection
 
 ## Ordering
 
+**Cart**:
+The Offers, with a quantity each, that a Customer or a signed-out visitor intends to buy. It holds no stock and fixes no price.
+_Avoid_: Basket, bag, trolley
+
+**Address Book**:
+A Customer's saved UAE delivery addresses, one of them the default. An Order keeps its own copy of the address it is delivered to.
+_Avoid_: Addresses, saved locations
+
 **Order**:
 Everything a Customer bought in one checkout.
 _Avoid_: Purchase, transaction, basket
+
+**Failed Order**:
+An Order that could not be placed because stock for its lines could not be reserved. It never had stock, payment or a Shipment.
+_Avoid_: Rejected Order (a Seller rejects a Shipment, never an Order)
 
 **Shipment**:
 The part of an Order fulfilled by a single Seller, which moves through delivery on its own.
 _Avoid_: Sub-order, package, consignment, parcel
 
+**Order Number**:
+The short code a Customer or Operator uses to refer to an Order. A Shipment's number is its Order Number plus the Shipment's position in the Order.
+_Avoid_: Order id, reference, confirmation code
+
 **Estimated Delivery Date**:
-The date a Customer is promised a Shipment will arrive, derived from the Offer's Processing Time plus delivery time.
+The date a Customer is promised a Shipment will arrive, fixed at checkout from the longest Processing Time among the Shipment's items plus delivery time.
 _Avoid_: ETA, EDD, "Get it by" date
 
 **Cash on Delivery**:

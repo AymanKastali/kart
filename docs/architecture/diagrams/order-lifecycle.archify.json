@@ -1,0 +1,156 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Kart Order Lifecycle",
+    "subtitle": "The Ordering context's Order states",
+    "output": "docs/architecture/diagrams/order-lifecycle.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/AymanKastali/kart",
+      "provider": "github",
+      "revision": "e9611ce5d831d2cb6b5bf2de02d9c7b2469f196a"
+    }
+  },
+  "mainPath": [
+    "placing",
+    "awaiting_payment",
+    "confirmed",
+    "completed"
+  ],
+  "states": [
+    {
+      "id": "placing",
+      "type": "start",
+      "label": "Placing",
+      "sublabel": "amounts fixed, reserving stock",
+      "tag": "checkout",
+      "step": "01",
+      "sources": [
+        {
+          "path": "docs/architecture/overview.md"
+        }
+      ]
+    },
+    {
+      "id": "awaiting_payment",
+      "type": "waiting",
+      "label": "Awaiting Payment",
+      "sublabel": "card, 30-minute window",
+      "tag": "card",
+      "step": "02"
+    },
+    {
+      "id": "confirmed",
+      "type": "active",
+      "label": "Confirmed",
+      "sublabel": "Shipments in progress",
+      "tag": "order.confirmed",
+      "step": "03"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "Completed",
+      "sublabel": "at least one delivered",
+      "tag": "terminal",
+      "step": "04"
+    },
+    {
+      "id": "failed",
+      "type": "failure",
+      "label": "Failed",
+      "sublabel": "out of stock; hidden from Customer",
+      "tag": "terminal"
+    },
+    {
+      "id": "cancelled",
+      "type": "neutral",
+      "label": "Cancelled",
+      "sublabel": "nothing received, nothing paid",
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "placing-awaiting",
+      "from": "placing",
+      "to": "awaiting_payment",
+      "label": "stock reserved (card)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "awaiting-confirmed",
+      "from": "awaiting_payment",
+      "to": "confirmed",
+      "label": "payment.succeeded",
+      "variant": "dashed"
+    },
+    {
+      "id": "confirmed-completed",
+      "from": "confirmed",
+      "to": "completed",
+      "label": "all Shipments ended",
+      "note": "at least one delivered"
+    },
+    {
+      "id": "placing-confirmed",
+      "from": "placing",
+      "to": "confirmed",
+      "label": "stock reserved (COD)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "placing-failed",
+      "from": "placing",
+      "to": "failed",
+      "label": "out of stock",
+      "variant": "security"
+    },
+    {
+      "id": "awaiting-cancelled",
+      "from": "awaiting_payment",
+      "to": "cancelled",
+      "label": "timeout or abandoned",
+      "note": "card payment cancelled first; order.cancelled",
+      "variant": "security"
+    },
+    {
+      "id": "confirmed-cancelled",
+      "from": "confirmed",
+      "to": "cancelled",
+      "label": "all Shipments ended",
+      "note": "none delivered; no event"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Checkout",
+      "items": [
+        "Placing saves every amount before stock is reserved",
+        "Reservation is all lines or none, idempotent per Order",
+        "Scheduler retries Orders stuck in placing"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Card payment window",
+      "items": [
+        "Declined cards can be retried for 30 minutes",
+        "Payments cancels the card payment before the Order is cancelled",
+        "A payment that already succeeded confirms the Order instead"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "After confirmation",
+      "items": [
+        "The Order records each Shipment's outcome from shipment.* events",
+        "Amounts never change; refunds belong to Payments",
+        "Ending as completed or cancelled publishes nothing"
+      ]
+    }
+  ]
+}

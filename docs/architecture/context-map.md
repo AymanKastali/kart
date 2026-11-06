@@ -33,11 +33,11 @@ The map is drawn as an animated diagram in [`diagrams/context-map.html`](diagram
 | Seller Onboarding → Catalog, Offer, Discovery, Seller Settlement | Downstream conforms | `seller.approved`, carrying the Seller's display name. Catalog refuses Products from Sellers who aren't approved |
 | Catalog → Offer | Downstream conforms | `product.approved`, `product.rejected`. An Offer is live only when its Product is approved and price and stock are above zero |
 | Catalog, Offer → Discovery | Downstream conforms (read model) | Events that carry state, plus snapshot queries to rebuild the read model |
-| Offer → Ordering | Customer–supplier (Ordering is the customer) | Synchronous: query Offers, reserve stock for an Order (all lines or none, idempotent per Order). Event: Offer releases stock on `order.cancelled`, `shipment.cancelled` and `shipment.rejected` |
+| Offer → Ordering | Customer–supplier (Ordering is the customer) | Synchronous: query Offers, reserve stock for an Order (all lines or none, idempotent per Order), release an Order's reservation when checkout gives up. Event: Offer releases stock on `order.cancelled`, `shipment.cancelled` and `shipment.rejected` |
 | Catalog → Ordering | Customer–supplier | Synchronous query at checkout for Product title, image, Category and Referral Fee rate, which are copied onto the Order line |
-| Payments → Ordering | Open host service | Synchronous: start a card payment. Events: `payment.succeeded`, `payment.failed` |
-| Ordering → Fulfilment | Customer–supplier | `order.confirmed`, carrying lines grouped by Seller. Fulfilment creates one Shipment per Seller |
-| Fulfilment → Offer, Payments, Ordering, Seller Settlement | Published language | `shipment.cancelled` / `shipment.rejected` (release stock, refund card payments, update the Order's derived status, no Settlement); `shipment.delivered` (Settlement becomes final, Cash on Delivery recorded as collected) |
+| Payments → Ordering | Open host service | Synchronous: start a card payment; cancel it before an unpaid Order is cancelled. Event: `payment.succeeded`. A declined card is retried within the payment window, so there is no failure event |
+| Ordering → Fulfilment | Customer–supplier | `order.confirmed`, carrying lines grouped by Seller, with the `ShipmentId`, Shipment number and Estimated Delivery Date Ordering fixed for each group. Fulfilment creates one Shipment per group with those ids |
+| Fulfilment → Offer, Payments, Ordering, Seller Settlement | Published language | `shipment.cancelled` / `shipment.rejected` (release stock, refund card payments, record the outcome on the Order, no Settlement); `shipment.delivered` (Settlement becomes final, Cash on Delivery recorded as collected) |
 | Ordering, Fulfilment → Seller Settlement | Downstream conforms | Order lines with the Referral Fee rate, then the Shipment's outcome |
 | Every context → Notifications | Downstream conforms | Reacts to events; keeps its own copy of email addresses from `account.registered` |
 | Payments ↔ Stripe | Anti-corruption layer | PaymentIntents, refunds, webhooks. No Stripe concept leaks out of Payments |

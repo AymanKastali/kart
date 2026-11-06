@@ -47,7 +47,7 @@
           "payments",
           "stripe"
         ],
-        "note": "Ordering asks the owners synchronously: Offer reserves stock, Catalog supplies fee rates, Payments starts card payment."
+        "note": "Ordering asks the owners synchronously: Offer reserves stock, Catalog supplies fee rates, Payments starts or cancels the card payment."
       },
       {
         "id": "after-order",
@@ -65,7 +65,7 @@
     "repository": {
       "url": "https://github.com/AymanKastali/kart",
       "provider": "github",
-      "revision": "10012ba8febdeea45d8c31b1e917b05007a833fb"
+      "revision": "e9611ce5d831d2cb6b5bf2de02d9c7b2469f196a"
     }
   },
   "components": [
@@ -350,7 +350,7 @@
       "id": "offer-ordering",
       "from": "offer",
       "to": "ordering",
-      "label": "reserve stock",
+      "label": "reserve / release stock",
       "variant": "emphasis"
     },
     {
@@ -364,7 +364,7 @@
       "id": "payments-ordering",
       "from": "payments",
       "to": "ordering",
-      "label": "start payment · payment.*",
+      "label": "start / cancel payment · payment.succeeded",
       "variant": "emphasis"
     },
     {

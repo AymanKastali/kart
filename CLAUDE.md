@@ -14,4 +14,4 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 ### Architecture diagrams
 
-`docs/architecture/diagrams/` holds archify diagrams generated from `docs/architecture/context-map.md` and `docs/architecture/overview.md`. They must never be out of sync with those docs. Whenever a context, relationship, integration event or key flow changes, update the matching `.archify.json`, re-render its `.html`, and commit both with the doc change. See `docs/architecture/diagrams/README.md`.
+`docs/architecture/diagrams/` holds archify diagrams generated from `docs/architecture/context-map.md`, `docs/architecture/overview.md` and `docs/architecture/contexts/ordering.md`. They must never be out of sync with those docs. Whenever a context, relationship, integration event, key flow or Order state changes, update the matching `.archify.json`, re-render its `.html`, and commit both with the doc change. See `docs/architecture/diagrams/README.md`.

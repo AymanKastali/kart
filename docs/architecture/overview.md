@@ -70,7 +70,7 @@ One container image, run as several process types:
 |---|---|
 | `api` | FastAPI: all HTTP routes and webhooks |
 | `worker` | RabbitMQ consumers, one consumer group per context's queue |
-| `scheduler` | Sweepers: retry Orders stuck in *placing*; cancel card Orders still *awaiting payment* after 30 minutes; move simulated deliveries forward |
+| `scheduler` | Sweepers: retry Orders stuck in *placing*; cancel card Orders still *awaiting payment* after 30 minutes (cancelling the card payment first); move simulated deliveries forward |
 | `debezium` | Debezium Server (its own image): outbox → RabbitMQ |
 
 ## API
@@ -79,7 +79,7 @@ One versioned REST/JSON API with OpenAPI docs, organised by audience. Each route
 
 | Prefix | Audience | Contexts |
 |---|---|---|
-| `/v1/storefront/...` | Anyone | Discovery |
+| `/v1/storefront/...` | Anyone | Discovery, Ordering (guest carts) |
 | `/v1/customer/...` | Customer | Ordering (cart, addresses, checkout, Orders), Fulfilment (Shipment tracking and cancellation) |
 | `/v1/seller/...` | Seller | Seller Onboarding, Catalog, Offer, Fulfilment (Shipment queue, pack, reject), Seller Settlement |
 | `/v1/operator/...` | Operator | Seller Onboarding and Catalog approval queues, Catalog (Categories, Referral Fees), Discovery (curation), read-only views of Orders and Shipments |
@@ -93,12 +93,12 @@ An animated sequence of these flows is in [`diagrams/order-flow.html`](diagrams/
 
 ### Checkout
 
-Ordering coordinates checkout:
+Ordering coordinates checkout. The full design, including pricing rules, crash recovery and the Order's states, is in [`contexts/ordering.md`](contexts/ordering.md).
 
-1. Query Offer (price, live status, Seller, Processing Time) and Catalog (title, image, Category, Referral Fee rate) through their `contracts`.
-2. Save the Order as **placing**, with every amount fixed: item prices including VAT, a Delivery Charge per Seller's lines, the Cash on Delivery Fee on the most valuable Shipment's lines, and the Referral Fee rate per line.
+1. Re-price the Cart: query Offer (price, live status, Seller, Processing Time) and Catalog (title, image, Category, Referral Fee rate) through their `contracts`. If a line is unavailable or the total differs from the one the Customer saw, refuse with a fresh quote.
+2. Save the Order as **placing**, with every amount fixed: item prices including VAT, a Delivery Charge per Seller's lines, the Cash on Delivery Fee on the most valuable Shipment's lines, and the Referral Fee rate per line. Ordering also creates each future Shipment's id here.
 3. Call Offer synchronously to reserve stock for this Order: all lines or none, idempotent per Order id.
-4. If the reservation fails, the Order is **rejected** (out of stock).
+4. If the reservation fails, the Order is **failed** (out of stock).
    If it succeeds:
    - **Cash on Delivery:** the Order is **confirmed**.
    - **Card:** the Order is **awaiting payment**. Ordering asks Payments to start a card payment (a PaymentIntent for the full amount) and returns its client secret.
@@ -106,8 +106,9 @@ Ordering coordinates checkout:
 
 ### Card payment
 
-- When Stripe's webhook arrives, Payments publishes `payment.succeeded` and Ordering confirms the Order.
-- On `payment.failed`, or after 30 minutes unpaid, Ordering cancels the Order and publishes `order.cancelled`, and Offer releases its stock.
+- A declined card doesn't end the Order: the Customer can try another card within 30 minutes.
+- When Stripe's webhook reports success, Payments publishes `payment.succeeded` and Ordering confirms the Order.
+- After 30 minutes unpaid, or if the Customer abandons payment, Ordering first asks Payments synchronously to cancel the card payment. If that works, Ordering cancels the Order and publishes `order.cancelled`, and Offer releases its stock. If the payment already succeeded, the Order waits for `payment.succeeded` instead.
 - Payment is captured in full at checkout and refunded per Shipment.
 
 ### Shipments
@@ -116,7 +117,7 @@ Ordering coordinates checkout:
 - The Seller marks the Shipment packed → Fulfilment books a pickup through its `Courier` port.
 - In the MVP, the port's adapter is a **simulated courier inside Fulfilment**. It records the booking in Fulfilment's schema, and the `scheduler` moves the Shipment through shipped → out for delivery → delivered after configurable delays, by calling Fulfilment's own use cases. For Cash on Delivery, delivery records the full amount as collected.
 - A real courier later is a new adapter behind the same port, plus a webhook route.
-- `shipment.delivered` → Payments records any Cash on Delivery collected, Seller Settlement makes the Settlement final, Ordering updates the Order's derived status, and Notifications emails the Customer.
+- `shipment.delivered` → Payments records any Cash on Delivery collected, Seller Settlement makes the Settlement final, Ordering records the Shipment's outcome on the Order, and Notifications emails the Customer.
 - Failed delivery and returns are `Later`; the courier simulates only the happy path.
 
 ### Cancellation and rejection
@@ -126,7 +127,7 @@ The flow is choreographed, with no orchestrator.
 - A Customer can cancel a Shipment before it is packed, and a Seller can reject one. Either way, Fulfilment publishes `shipment.cancelled` or `shipment.rejected`, carrying the Shipment's lines and amount.
 - Offer releases the lines' stock.
 - For card Orders, Payments refunds the Shipment's items plus its Delivery Charge.
-- Ordering updates the Order's derived status.
+- Ordering records the Shipment's outcome on the Order.
 - Seller Settlement discards the Shipment's Settlement.
 - If that Shipment carried the Cash on Delivery Fee, the fee is waived.
 
@@ -145,4 +146,4 @@ The flow is choreographed, with no orchestrator.
 
 ## Deferred to later sessions
 
-Tactical design of each core context (aggregates, invariants, state machines), starting with Ordering and Fulfilment, then Offer.
+Tactical design of the remaining core contexts: Fulfilment, then Offer. Ordering's is in [`contexts/ordering.md`](contexts/ordering.md).

@@ -9,7 +9,7 @@
     "repository": {
       "url": "https://github.com/AymanKastali/kart",
       "provider": "github",
-      "revision": "10012ba8febdeea45d8c31b1e917b05007a833fb"
+      "revision": "e9611ce5d831d2cb6b5bf2de02d9c7b2469f196a"
     },
     "legend": {
       "entries": {
@@ -147,7 +147,7 @@
       "y": 249,
       "label": "reserve stock",
       "variant": "emphasis",
-      "note": "Order saved as placing; all or none"
+      "note": "placing; all or none, else failed"
     },
     {
       "id": "reserved",
@@ -280,7 +280,7 @@
       "from": "fulfilment",
       "to": "ordering",
       "y": 948,
-      "label": "update derived status",
+      "label": "record Shipment outcome",
       "variant": "dashed",
       "note": "COD Fee waived if carried"
     }
@@ -290,7 +290,7 @@
       "dot": "cyan",
       "title": "Synchronous",
       "items": [
-        "Only checkout calls other contexts directly, through their contracts",
+        "Checkout and the payment timeout call other contexts directly, through their contracts",
         "Ordering never reads Discovery"
       ]
     },
@@ -306,7 +306,8 @@
       "dot": "rose",
       "title": "Timeouts",
       "items": [
-        "Unpaid card Orders cancelled after 30 min → order.cancelled → Offer releases stock",
+        "Unpaid after 30 min or abandoned → cancel card payment, then order.cancelled → Offer releases stock",
+        "Declined cards can be retried within the window",
         "Scheduler retries Orders stuck in placing"
       ]
     }
