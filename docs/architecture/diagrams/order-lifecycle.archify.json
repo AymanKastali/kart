@@ -98,7 +98,7 @@
       "id": "placing-confirmed",
       "from": "placing",
       "to": "confirmed",
-      "label": "stock reserved (COD)",
+      "label": "stock reserved (Cash on Delivery, paid at the door)",
       "variant": "emphasis"
     },
     {

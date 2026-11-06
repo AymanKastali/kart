@@ -164,7 +164,7 @@
       "y": 343,
       "label": "start card payment",
       "variant": "emphasis",
-      "note": "card only; COD confirmed now"
+      "note": "card only; Cash on Delivery confirmed now"
     },
     {
       "id": "intent",
@@ -282,7 +282,7 @@
       "y": 948,
       "label": "record Shipment outcome",
       "variant": "dashed",
-      "note": "COD Fee waived if carried"
+      "note": "Cash on Delivery Fee waived if carried"
     }
   ],
   "cards": [

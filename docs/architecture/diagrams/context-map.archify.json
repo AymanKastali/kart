@@ -253,7 +253,7 @@
       "id": "payments",
       "type": "cloud",
       "label": "Payments",
-      "sublabel": "card, refunds, COD",
+      "sublabel": "card, refunds, Cash on Delivery",
       "tag": "Generic",
       "pos": [
         640,
