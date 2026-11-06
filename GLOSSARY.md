@@ -16,6 +16,23 @@ _Avoid_: Merchant, vendor, partner, store
 A member of the marketplace's own staff who runs the platform, for example by moderating the catalog, handling customer service or overseeing logistics.
 _Avoid_: Admin, staff, employee
 
+**Account**:
+The login an actor uses to sign in, with exactly one role: Customer, Seller or Operator. A Seller has exactly one Account.
+_Avoid_: User, login, profile
+
+## Bounded contexts
+
+**Identity**: Accounts, sign-in and roles.
+**Seller Onboarding**: a Seller's business details and the Operator's approval of them.
+**Catalog**: Product content, Categories, and the Operator's approval of Products.
+**Offer**: price, stock and Processing Time, and whether an Offer is live.
+**Discovery**: how Customers find Products (search, browse, Product page) and the Operator-curated home page.
+**Ordering**: Cart, address book, checkout and the Order.
+**Fulfilment**: each Shipment's journey from Seller to Customer.
+**Payments**: card payments, refunds and Cash on Delivery collection.
+**Seller Settlement**: what each Seller earns from each Shipment.
+**Notifications**: emails to Customers and Sellers.
+
 ## Catalog
 
 **Product**:
@@ -52,11 +69,19 @@ _Avoid_: ETA, EDD, "Get it by" date
 A payment method where the Customer pays the courier when the Shipment arrives.
 _Avoid_: COD, pay on delivery
 
+**Cash on Delivery Fee**:
+A fee charged once per Order paid by Cash on Delivery and collected with exactly one of its Shipments, the most valuable one at checkout. It is waived if that Shipment never arrives.
+_Avoid_: COD fee, handling fee
+
 ## Money
 
 **Referral Fee**:
 The marketplace's commission on each item sold, as a percentage set per Category.
 _Avoid_: Commission, take rate, marketplace fee
+
+**Settlement**:
+The record of what a Seller earns from one Shipment: gross sales, Referral Fee and net amount. A cancelled or rejected Shipment has no Settlement.
+_Avoid_: Payout, earnings, statement
 
 **Delivery Charge**:
 The amount a Customer pays for delivering one Shipment, which depends on that Shipment's value.

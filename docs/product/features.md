@@ -100,7 +100,7 @@ The full noon.com (UAE) feature set as of late 2026, each feature tagged with wh
 | Feature | Tag | Notes |
 |---|---|---|
 | Card payment through a sandbox gateway | `MVP` | |
-| Cash on Delivery: AED 12 fee, not available above AED 6,500 | `MVP` | |
+| Cash on Delivery: AED 12 Cash on Delivery Fee, not available above AED 6,500 | `MVP` | the fee is collected with the most valuable Shipment and waived if that Shipment is cancelled or rejected |
 | Delivery Charge per Shipment: under AED 100 → AED 10; AED 100–500 → AED 5; over AED 500 → free | `MVP` | |
 | Prices include 5% VAT, with VAT shown separately on the Order | `MVP` | |
 | Stock reduced when the Order is placed; released on cancellation, rejection or failed card payment | `MVP` | |
