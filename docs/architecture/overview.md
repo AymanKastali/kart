@@ -14,6 +14,7 @@ One modular monolith with strict bounded-context boundaries ([ADR-0003](../adr/0
 
 ```
 pyproject.toml                  the kart package, tool config and import-linter contracts
+Dockerfile                      the one image every Kart process runs from
 src/kart/
   shared_kernel/                Money, typed ids, event envelope
   contexts/                     one package per bounded context
@@ -27,9 +28,9 @@ src/kart/
     payment/
     seller_settlement/
     notification/
-  app/                          process entrypoints: api, worker, scheduler
-tests/                          architecture tests for the context boundaries, shared kernel tests, and more to come
-deploy/                         Compose files, Debezium config
+  app/                          process entrypoints (api, worker, scheduler) and settings
+tests/                          architecture tests for the context boundaries, shared kernel and app tests, and more to come
+deploy/                         Compose file and .env.example; Debezium config later
 ```
 
 Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.
