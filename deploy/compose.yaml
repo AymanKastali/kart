@@ -23,6 +23,8 @@ x-app: &app
       condition: service_healthy
     migrate:
       condition: service_completed_successfully
+    topology:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
