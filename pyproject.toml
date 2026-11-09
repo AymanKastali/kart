@@ -86,12 +86,12 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
-# ADR-0005: only Identity knows the app signs in through Keycloak.
-name = "Only Identity uses a Keycloak or OIDC library"
+# ADR-0005: only Identity knows how access tokens are made.
+name = "Only Identity uses the JWT library"
 type = "forbidden"
 source_modules = ["kart.app", "kart.shared", "kart.contexts.*"]
-forbidden_modules = ["jwt", "jose", "authlib", "keycloak"]
-# Others reach the library only through Identity, which is how it should be.
+forbidden_modules = ["jwt"]
+# Others reach the library only through Identity's contracts, which is how it should be.
 allow_indirect_imports = true
 ignore_imports = ["kart.contexts.identity.** -> jwt"]
 

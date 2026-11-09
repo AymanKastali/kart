@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI
 
 from kart.app.audiences import principal_for_audience
 from kart.app.settings import Settings
-from kart.contexts.identity.keycloak import KeycloakAccessTokens
+from kart.contexts.identity.contracts import AccessTokens
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Read the settings at startup, so a missing variable stops the process instead of
     # leaving a healthy-looking api that fails on its first real request.
     settings = Settings()
-    app.state.access_tokens = KeycloakAccessTokens(settings.keycloak_url)
+    app.state.access_tokens = AccessTokens(settings.keycloak_url)
     yield
 
 

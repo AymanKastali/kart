@@ -22,14 +22,7 @@
       "clientId": "kart-api",
       "name": "Kart API",
       "publicClient": true,
-      "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": [
-        "http://localhost:8000/*"
-      ],
-      "webOrigins": [
-        "+"
-      ],
       "protocolMappers": [
         {
           "name": "kart-api audience",

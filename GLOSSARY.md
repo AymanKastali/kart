@@ -20,6 +20,14 @@ _Avoid_: Admin, staff, employee
 The login an actor uses to sign in, with exactly one role: Customer, Seller or Operator. A Seller has exactly one Account.
 _Avoid_: User, login, profile
 
+**Principal**:
+The Account behind an API request, as other contexts see it: its id and its one role, taken from a verified access token.
+_Avoid_: Current user, identity, caller
+
+**Audience**:
+Who an API prefix serves: anyone (`/v1/storefront`), Customers (`/v1/customer`), Sellers (`/v1/seller`) or Operators (`/v1/operator`). Only an Account with that audience's role may call a signed-in audience's routes.
+_Avoid_: Scope, area, portal
+
 ## Bounded contexts
 
 **Identity**: Accounts, sign-in and roles.
