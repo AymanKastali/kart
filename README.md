@@ -17,24 +17,31 @@ uv installs Python 3.14 if needed, creates `.venv` and installs `kart` from `src
 The local stack runs in Docker Compose. So far it has Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, and Kart's `api`, `worker` and `scheduler` processes, all from one image. Debezium Server, MinIO and Mailpit join as later tickets need them. You need Docker with Compose v2.
 
 ```sh
+cp .env.example .env    # once; .env is not committed
 docker compose -f deploy/compose.yaml up --build --wait
 ```
 
-`--wait` returns once the infrastructure and the `api` pass their healthchecks and the `worker` and `scheduler` are running. Then:
+`--wait` returns once the infrastructure and the `api` pass their healthchecks and the `worker` and `scheduler` are running. Then, with the users and passwords from `.env`:
 
 | Service | URL |
 |---|---|
 | API health | http://localhost:8000/health |
 | API docs (OpenAPI) | http://localhost:8000/docs |
-| RabbitMQ management | http://localhost:15672 (`kart` / `kart`) |
-| Keycloak admin | http://localhost:8080 (`admin` / `admin`) |
-| Postgres | `localhost:5432` (`kart` / `kart`, database `kart`) |
+| RabbitMQ management | http://localhost:15672 |
+| Keycloak admin | http://localhost:8080 |
+| Postgres | `localhost:5432` |
 
-Ports listen on localhost only. To change the users and passwords, copy `deploy/.env.example` to `deploy/.env` (git ignores it) and edit it.
+Ports listen on localhost only. Stop the stack with `docker compose -f deploy/compose.yaml down`. Add `-v` to also delete the Postgres and RabbitMQ data.
 
-Stop the stack with `docker compose -f deploy/compose.yaml down`. Add `-v` to also delete the Postgres and RabbitMQ data.
+### Configuration
 
-Every process reads its configuration from environment variables (`DATABASE_URL`, `RABBITMQ_URL`, `KEYCLOAK_URL`) through `kart.app.settings` at startup, and refuses to start if one is missing. Compose sets them.
+`.env` is the one place the local users, passwords and hosts are set:
+
+- Postgres, RabbitMQ and Keycloak create their users from it.
+- Every Kart process reads it at startup through `kart.app.settings`, which builds the database and RabbitMQ URLs from it. A process refuses to start if a value is missing.
+- Inside Compose, the hosts are replaced with the service names (`postgres`, `rabbitmq`, `keycloak`).
+
+To run a process on your machine against the Compose infrastructure, for example `uv run uvicorn kart.app.api:app --reload --port 8001`, run it from the repository root so it finds `.env`. Real environment variables override `.env`.
 
 ## Checks
 

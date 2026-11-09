@@ -30,7 +30,8 @@ src/kart/
     notification/
   app/                          process entrypoints (api, worker, scheduler) and settings
 tests/                          architecture tests for the context boundaries, shared kernel and app tests, and more to come
-deploy/                         Compose file and .env.example; Debezium config later
+.env.example                    the local configuration; copied to .env
+deploy/                         Compose file; Debezium config later
 ```
 
 Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.
