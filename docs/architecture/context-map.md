@@ -50,6 +50,6 @@ Kept deliberately minimal; anything added needs a reason:
 
 - `Money`: AED in minor units, with 5% VAT rules.
 - Typed ids: `AccountId`, `SellerId`, `ProductId`, `OfferId`, `OrderId`, `ShipmentId`, `CategoryId`.
-- The integration-event envelope (id, type, version, time it happened, trace context).
+- The integration-event envelope (id, type with its version such as `order.confirmed.v1`, time it happened, trace context, payload).
 
 Everything else belongs to one context, even if it looks duplicated.
