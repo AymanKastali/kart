@@ -12,7 +12,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm.exc import StaleDataError
 
 from kart.app.database import unit_of_work
-from kart.app.topology import EVENTS_EXCHANGE, declare_topology
+from kart.app.rabbitmq_setup import EVENTS_EXCHANGE, set_up_rabbitmq
 from kart.app.worker import ATTEMPTS, consume
 from kart.building_blocks.inbox import Subscription
 from kart.building_blocks.outbox import write_to_outbox
@@ -55,7 +55,7 @@ def consuming(
 ) -> Generator[None]:
     """Run the worker for `subscription` in the background, then remove its queues."""
     url = rabbitmq_url(rabbitmq)
-    declare_topology(url, [subscription])
+    set_up_rabbitmq(url, [subscription])
     stopped = threading.Event()
     worker = threading.Thread(target=consume, args=(url, engine, [subscription], stopped))
     worker.start()

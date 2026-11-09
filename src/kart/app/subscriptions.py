@@ -1,4 +1,5 @@
-"""Every context's subscription: `topology` declares their queues and the `worker` consumes them.
+"""Every context's subscription: `rabbitmq_setup` declares their queues and the `worker`
+consumes them.
 
 None subscribes to anything yet.
 """

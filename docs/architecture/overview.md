@@ -30,7 +30,7 @@ src/kart/
     seller_settlement/
     notification/
     <context>/migrations/       each context's Alembic history
-  app/                          process entrypoints (api, worker, scheduler, migrate, topology), settings, the shared engine and unit of work, and the Alembic environment every history runs in
+  app/                          process entrypoints (api, worker, scheduler, migrate, rabbitmq_setup), settings, the shared engine and unit of work, and the Alembic environment every history runs in
 tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
 .env.example                    the local configuration, read by Compose as it is
 deploy/                         Compose file and Debezium Server config
@@ -64,9 +64,9 @@ Integration events use a transactional outbox, relayed by change data capture (C
 3. Each subscribing context has its own quorum queue (for example `fulfilment.q`), bound to the routing keys it cares about, with a dead-letter queue (`fulfilment.dlq`).
 4. The `worker` hands each event to the context's handler for its type, in one unit of work that also records the event id in the context's `<schema>.inbox` table, and acknowledges it only once that commits. A redelivered event finds its id there and is acknowledged without being handled again. A failed handler rolls back, inbox row included, and the event is redelivered, until it fails on its fifth delivery and goes to the dead-letter queue ([ADR-0010](../adr/0010-retries-counted-by-the-quorum-queue.md)).
 
-The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, and `payload`, which holds the whole envelope, trace context included. A context's first migration creates it with `kart.building_blocks.outbox.create_outbox_table()`, and its adapters write events with `write_to_outbox()`, inside the unit of work. `migrate` then adds every outbox to the `outbox` publication and creates the replication slot, and the one-shot `topology` service declares the `kart.events` exchange, so no event is lost before Debezium first connects or while it is down ([ADR-0009](../adr/0009-change-data-capture-setup-and-building-blocks.md)).
+The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, and `payload`, which holds the whole envelope, trace context included. A context's first migration creates it with `kart.building_blocks.outbox.create_outbox_table()`, and its adapters write events with `write_to_outbox()`, inside the unit of work. `migrate` then adds every outbox to the `outbox` publication and creates the replication slot, and the one-shot `rabbitmq-setup` service declares the `kart.events` exchange, so no event is lost before Debezium first connects or while it is down ([ADR-0009](../adr/0009-change-data-capture-setup-and-building-blocks.md)).
 
-A context subscribes with a `kart.building_blocks.inbox.Subscription`, naming the context and a handler per event type; its first migration creates the inbox with `create_inbox_table()`. `kart.app.subscriptions.SUBSCRIPTIONS` lists every subscription, so `topology` declares their queues, bindings and dead-letter queues before Debezium publishes, and the `worker` consumes them.
+A context subscribes with a `kart.building_blocks.inbox.Subscription`, naming the context and a handler per event type; its first migration creates the inbox with `create_inbox_table()`. `kart.app.subscriptions.SUBSCRIPTIONS` lists every subscription, so `rabbitmq-setup` declares their queues, bindings and dead-letter queues before Debezium publishes, and the `worker` consumes them.
 
 Integration events carry the state their subscribers need, and they are versioned. A breaking change publishes a new version (`.v2`) alongside the old one until every consumer has moved over. Domain events stay inside their context.
 
