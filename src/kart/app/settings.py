@@ -1,6 +1,6 @@
 """The app's configuration, read from environment variables only.
 
-Docker Compose loads `.env` into the environment, so the app never reads a file itself.
+Docker Compose sets them for each process (see `deploy/compose.yaml`); the app reads no file.
 """
 
 from pydantic_settings import BaseSettings
