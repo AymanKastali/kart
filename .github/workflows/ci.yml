@@ -30,15 +30,21 @@ jobs:
       - name: pytest
         run: uv run pytest
 
-  image:
+  # The deployment itself: `compose up` on an empty database, as ADR-0007 promises.
+  stack:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: compose file
+      - name: compose up
+        run: docker compose -f deploy/compose.yaml up --build --wait
+      - name: migrate ran and every context has its schema
         run: |
-          cp .env.example .env
-          docker compose -f deploy/compose.yaml config --quiet
-      - name: build
-        run: docker build .
+          compose="docker compose -f deploy/compose.yaml"
+          test "$($compose ps -a migrate --format '{{.ExitCode}}')" = 0
+          test "$($compose exec -T postgres psql -U kart -d kart -Atc \
+            "SELECT count(*) FROM information_schema.tables WHERE table_name = 'alembic_version'")" = 10
+      - name: logs
+        if: failure()
+        run: docker compose -f deploy/compose.yaml logs

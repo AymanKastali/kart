@@ -28,8 +28,9 @@ src/kart/
     payment/
     seller_settlement/
     notification/
-  app/                          process entrypoints (api, worker, scheduler) and settings
-tests/                          architecture tests for the context boundaries, shared kernel and app tests, and more to come
+    <context>/migrations/       each context's Alembic history
+  app/                          process entrypoints (api, worker, scheduler, migrate), settings, the shared engine and unit of work, and the Alembic environment every history runs in
+tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, and more to come
 .env.example                    the local configuration, read by Compose as it is
 deploy/                         Compose file; Debezium config later
 ```
@@ -48,7 +49,8 @@ How much layering a context gets depends on its subdomain:
 ## Data
 
 - One Postgres database, **one schema per context**. A context never reads or writes another context's schema, and no transaction spans contexts.
-- **One Alembic migration history per context**, each scoped to its own schema with its own version table.
+- **One Alembic migration history per context**, each scoped to its own schema with its own version table. `python -m kart.app.migrate` runs them all, as the one-shot `migrate` service on every `docker compose up`.
+- **One Postgres role per context**, which owns the context's schema. The app shares one engine, and each unit of work runs as its context's role, so Postgres refuses any statement that touches another context's schema ([ADR-0008](../adr/0008-a-postgres-role-per-context.md)).
 - Product images go to object storage, owned by Catalog. Sellers upload through presigned URLs, and Postgres keeps only the object keys. MinIO runs locally; S3 or Cloudflare R2 in production.
 - Discovery's search uses Postgres full-text search (`tsvector`) and `pg_trgm` for autocomplete, inside Discovery's own schema.
 

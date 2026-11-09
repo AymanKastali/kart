@@ -27,7 +27,7 @@ def environment(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_settings_build_the_connection_urls_from_environment_variables() -> None:
     settings = Settings()
 
-    assert settings.database_url == "postgresql://kart:p%40ss%2Fword@postgres:5432/kart"
+    assert settings.database_url == "postgresql+psycopg://kart:p%40ss%2Fword@postgres:5432/kart"
     assert settings.rabbitmq_url == "amqp://kart:secret@rabbitmq:5672/"
     assert settings.keycloak_url == "http://keycloak:8080"
 
