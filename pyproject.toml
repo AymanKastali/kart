@@ -6,8 +6,11 @@ requires-python = ">=3.14"
 # Upper bounds stop `uv lock --upgrade` from taking a breaking release: below the next
 # major from 1.0 on, below the next minor for 0.x packages, where minors can break.
 dependencies = [
+    "alembic>=1.20.1,<2",
     "fastapi>=0.162.2,<0.163",
+    "psycopg[binary]>=3.3.8,<4",
     "pydantic-settings>=2.16.2,<3",
+    "sqlalchemy>=2.1.8,<3",
     "uvicorn[standard]>=0.54.0,<0.55",
 ]
 
@@ -21,6 +24,7 @@ dev = [
     "import-linter>=2.16,<3",
     "pytest>=9.2.0,<10",
     "ruff>=0.17.4,<0.18",
+    "testcontainers[postgres]>=4.15.0,<5",
     "ty>=0.0.99,<0.0.100",
 ]
 

@@ -1,15 +1,19 @@
 # The whole deployment: `docker compose -f deploy/compose.yaml up --build --wait`, with nothing
 # to set up first or run afterwards. Every service reads `.env.example`, then `.env` if one
-# exists to override it. Ports listen on localhost only. Run the checks with `docker compose -f deploy/compose.yaml run --rm dev`.
+# exists to override it. Ports listen on localhost only.
 name: kart
 
-x-app: &app
+# Every Kart process runs from the one image.
+x-kart: &kart
   build:
     context: ..
   env_file: &env
     - ../.env.example
     - path: ../.env
       required: false
+
+x-app: &app
+  <<: *kart
   depends_on:
     postgres:
       condition: service_healthy
@@ -17,6 +21,8 @@ x-app: &app
       condition: service_healthy
     keycloak:
       condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
@@ -62,6 +68,15 @@ services:
           grep -q '"UP"' <&3
       interval: 5s
       retries: 30
+
+  # Brings every context's schema up to date, then exits. It runs on every `up` and is a
+  # no-op when nothing changed; the app processes start only once it has succeeded.
+  migrate:
+    <<: *kart
+    command: ["python", "-m", "kart.app.migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api:
     <<: *app

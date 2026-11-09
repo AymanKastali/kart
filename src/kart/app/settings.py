@@ -1,7 +1,7 @@
 """The app's configuration, read from environment variables only.
 
-The values come from `.env` (copied from `.env.example`), which Docker Compose hands to
-every container. The app never reads the file itself.
+The values come from `.env.example`, overridden by `.env` if one exists, which Docker Compose
+hands to every container. The app never reads the files itself.
 """
 
 from urllib.parse import quote
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         credentials = _url_credentials(self.postgres_user, self.postgres_password)
-        return f"postgresql://{credentials}@{self.postgres_host}:5432/{self.postgres_db}"
+        return f"postgresql+psycopg://{credentials}@{self.postgres_host}:5432/{self.postgres_db}"
 
     @property
     def rabbitmq_url(self) -> str:
