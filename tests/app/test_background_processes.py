@@ -1,8 +1,11 @@
+import os
 import signal
 import subprocess
 import sys
 
 import pytest
+
+from tests.app.test_settings import ENVIRONMENT
 
 
 @pytest.mark.parametrize("process", ["worker", "scheduler"])
@@ -10,6 +13,7 @@ def test_a_background_process_stops_cleanly_on_sigterm(process: str) -> None:
     running = subprocess.Popen(  # noqa: S603 the command is fixed
         [sys.executable, "-m", f"kart.app.{process}"],
         stdout=subprocess.PIPE,
+        env={**os.environ, **ENVIRONMENT},
         text=True,
     )
     try:

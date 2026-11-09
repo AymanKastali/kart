@@ -37,6 +37,6 @@ jobs:
         with:
           persist-credentials: false
       - name: compose file
-        run: docker compose -f deploy/compose.yaml --env-file deploy/.env.example config --quiet
+        run: docker compose -f deploy/compose.yaml config --quiet
       - name: build
         run: docker build .

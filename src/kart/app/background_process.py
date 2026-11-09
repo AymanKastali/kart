@@ -4,12 +4,15 @@ import signal
 import threading
 from typing import TYPE_CHECKING
 
+from kart.app.settings import Settings
+
 if TYPE_CHECKING:
     from types import FrameType
 
 
 def run_until_stopped(name: str) -> None:
-    """Announce the process, then block until Docker stops it with SIGTERM (or Ctrl-C)."""
+    """Check the settings, announce the process, then block until SIGTERM (or Ctrl-C)."""
+    Settings()  # a missing variable stops the process here
     stopped = threading.Event()
 
     def stop(_signal: int, _frame: FrameType | None) -> None:
