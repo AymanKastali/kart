@@ -88,8 +88,8 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  # Relays every context's outbox from the write-ahead log to the kart.events exchange
-  # (ADR-0004). Its offsets live in a volume, so a restart picks up where it left off.
+  # Change data capture: streams every context's outbox from the write-ahead log to the
+  # kart.events exchange (ADR-0004). Its offsets live in a volume, so a restart picks up where it left off.
   debezium:
     image: quay.io/debezium/server:3.7.1.Final
     restart: unless-stopped

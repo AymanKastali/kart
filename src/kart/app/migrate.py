@@ -2,8 +2,8 @@
 
 Each context has its own Alembic history in its `migrations` package and its own version
 table inside its own schema. They share one Alembic environment, `kart.app.migrations`.
-Then it makes sure Debezium can relay every context's outbox. Running it again is a no-op, so
-Compose runs it on every `up`.
+Then it prepares change data capture, so Debezium can read every context's outbox. Running it
+again is a no-op, so Compose runs it on every `up`.
 """
 
 import pkgutil
@@ -42,10 +42,10 @@ def migrate(database_url: str, directory: Path = _CONTEXTS) -> None:
         config.attributes["database_url"] = database_url
         config.attributes["context"] = context
         command.upgrade(config, "head")
-    _prepare_relay(database_url, contexts(directory))
+    _prepare_change_data_capture(database_url, contexts(directory))
 
 
-def _prepare_relay(database_url: str, schemas: list[str]) -> None:
+def _prepare_change_data_capture(database_url: str, schemas: list[str]) -> None:
     """Make sure the publication covers every context's outbox, and the slot exists.
 
     The slot exists from the first migration on, so Postgres keeps every event committed
