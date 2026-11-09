@@ -17,6 +17,7 @@ pyproject.toml                  the kart package, tool config and import-linter 
 Dockerfile                      the one image every Kart process runs from
 src/kart/
   shared_kernel/                Money, typed ids, event envelope
+  building_blocks/              technical plumbing contexts' adapters build on: the outbox table and writer
   contexts/                     one package per bounded context
     identity/                   Keycloak integration, token verification
     seller_onboarding/
@@ -29,17 +30,17 @@ src/kart/
     seller_settlement/
     notification/
     <context>/migrations/       each context's Alembic history
-  app/                          process entrypoints (api, worker, scheduler, migrate), settings, the shared engine and unit of work, and the Alembic environment every history runs in
-tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, and more to come
+  app/                          process entrypoints (api, worker, scheduler, migrate, topology), settings, the shared engine and unit of work, and the Alembic environment every history runs in
+tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
 .env.example                    the local configuration, read by Compose as it is
-deploy/                         Compose file; Debezium config later
+deploy/                         Compose file and Debezium Server config
 ```
 
 Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`. `kart.building_blocks` holds technical plumbing with no domain meaning, such as the outbox; only a context's `infrastructure` and `migrations` may import it, and it imports no context. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
 
 How much layering a context gets depends on its subdomain:
 
@@ -59,11 +60,11 @@ How much layering a context gets depends on its subdomain:
 Integration events use a transactional outbox, relayed by change data capture (CDC) to RabbitMQ ([ADR-0004](../adr/0004-rabbitmq-with-transactional-outbox.md)).
 
 1. A context writes its integration events to its own `<schema>.outbox` table in the same transaction as the state change, and deletes them in the same transaction. The rows exist only in the write-ahead log.
-2. **Debezium Server** reads committed outbox inserts from the WAL (`pgoutput`, one connector and one publication covering every outbox table). Its Outbox Event Router publishes each event to the `kart.events` topic exchange, with the event type as the routing key (for example `product.approved.v1`) and the event id in a header.
+2. **Debezium Server** reads committed outbox inserts from the WAL (`pgoutput`, one connector and one publication covering every outbox table). Its Outbox Event Router publishes each event to the `kart.events` topic exchange, with the event type as the routing key (for example `product.approved.v1`) and the event id in the `id` header. The message body is the whole event envelope as JSON.
 3. Each subscribing context has its own queue (for example `fulfilment.q`), bound to the routing keys it cares about, with a dead-letter queue.
 4. Consumers record handled event ids in their own `<schema>.inbox` table, in the same transaction as the reaction, so redelivery is harmless.
 
-The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, `payload`, and trace context.
+The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, and `payload`, which holds the whole envelope, trace context included. A context's first migration creates it with `kart.building_blocks.outbox.create_outbox_table()`, and its adapters write events with `write_to_outbox()`, inside the unit of work. `migrate` then adds every outbox to the `outbox` publication and creates the replication slot, and the one-shot `topology` service declares the `kart.events` exchange, so no event is lost before Debezium first connects or while it is down ([ADR-0009](../adr/0009-migrate-prepares-the-relay.md)).
 
 Integration events carry the state their subscribers need, and they are versioned. A breaking change publishes a new version (`.v2`) alongside the old one until every consumer has moved over. Domain events stay inside their context.
 

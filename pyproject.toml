@@ -8,6 +8,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1,<2",
     "fastapi>=0.162.2,<0.163",
+    "pika>=1.4.4,<2",
     "psycopg[binary]>=3.3.8,<4",
     "pydantic-settings>=2.16.2,<3",
     "sqlalchemy>=2.1.8,<3",
@@ -24,7 +25,7 @@ dev = [
     "import-linter>=2.16,<3",
     "pytest>=9.2.0,<10",
     "ruff>=0.17.4,<0.18",
-    "testcontainers[postgres]>=4.15.0,<5",
+    "testcontainers[postgres,rabbitmq]>=4.15.0,<5",
     "ty>=0.0.99,<0.0.100",
 ]
 
@@ -47,9 +48,21 @@ ignore_imports = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The app wires contexts together; contexts build on the shared kernel"
+name = "The app wires contexts together; contexts build on the building blocks and shared kernel"
 type = "layers"
-layers = ["kart.app", "kart.contexts", "kart.shared_kernel"]
+layers = ["kart.app", "kart.contexts", "kart.building_blocks", "kart.shared_kernel"]
+
+[[tool.importlinter.contracts]]
+# The building blocks are technical plumbing, so only a context's adapters use them.
+name = "Only a context's infrastructure and migrations use the building blocks"
+type = "forbidden"
+source_modules = [
+    "kart.contexts.*.domain",
+    "kart.contexts.*.application",
+    "kart.contexts.*.api",
+    "kart.contexts.*.contracts",
+]
+forbidden_modules = ["kart.building_blocks"]
 
 [[tool.importlinter.contracts]]
 # The exemption above lets contexts import each other's contracts, so contracts must
