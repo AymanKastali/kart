@@ -47,8 +47,9 @@ def create_inbox_table() -> None:
     _inbox.create(op.get_bind())
 
 
-def first_delivery(session: Session, event_id: UUID) -> bool:
-    """Record `event_id` as handled in `session`'s transaction: False if it already was."""
+def record_in_inbox(session: Session, event_id: UUID) -> bool:
+    """Record `event_id` as handled in `session`'s transaction. False if it already was, so
+    the event mustn't be handled again."""
     inserted = session.scalar(
         insert(_inbox)
         .values(event_id=event_id)
