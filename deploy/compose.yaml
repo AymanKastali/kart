@@ -1,17 +1,15 @@
-# The local stack. Start it with `docker compose -f deploy/compose.yaml up --build --wait`
-# after `cp .env.example .env`. Every service reads the repository's `.env`; ports listen on
-# localhost only.
+# The whole deployment: `docker compose -f deploy/compose.yaml up --build --wait`, with nothing
+# to set up first or run afterwards. Every service reads `.env.example`, then `.env` if one
+# exists to override it. Ports listen on localhost only. Run the checks with `docker compose -f deploy/compose.yaml run --rm dev`.
 name: kart
 
 x-app: &app
   build:
     context: ..
-  env_file: ../.env
-  # Inside Compose the services reach each other by service name, not localhost.
-  environment:
-    POSTGRES_HOST: postgres
-    RABBITMQ_HOST: rabbitmq
-    KEYCLOAK_URL: http://keycloak:8080
+  env_file: &env
+    - ../.env.example
+    - path: ../.env
+      required: false
   depends_on:
     postgres:
       condition: service_healthy
@@ -24,9 +22,10 @@ x-app: &app
 services:
   postgres:
     image: postgres:18
+    restart: unless-stopped
     # Logical decoding lets Debezium read the outbox tables (#6).
     command: ["postgres", "-c", "wal_level=logical"]
-    env_file: ../.env
+    env_file: *env
     ports: ["127.0.0.1:5432:5432"]
     volumes: [postgres:/var/lib/postgresql]
     healthcheck:
@@ -36,7 +35,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
-    env_file: ../.env
+    restart: unless-stopped
+    env_file: *env
     ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
     volumes: [rabbitmq:/var/lib/rabbitmq]
     healthcheck:
@@ -46,8 +46,9 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
+    restart: unless-stopped
     command: ["start-dev"]
-    env_file: ../.env
+    env_file: *env
     environment:
       KC_HEALTH_ENABLED: "true"
     ports: ["127.0.0.1:8080:8080"]
