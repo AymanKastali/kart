@@ -16,6 +16,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KART_SRC = REPO_ROOT / "src"
 LINT_IMPORTS = Path(sys.executable).with_name("lint-imports")
+# What the shared kernel and the Core domains must not import.
+FRAMEWORKS = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
 
 
 def contracts_kept(tmp_path: Path, imports: dict[str, str]) -> bool:
@@ -74,10 +76,21 @@ def test_a_context_may_import_the_shared_kernel(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("context", ["ordering", "fulfilment", "offer"])
-@pytest.mark.parametrize("framework", ["fastapi", "starlette", "sqlalchemy", "pydantic"])
+@pytest.mark.parametrize("framework", FRAMEWORKS)
 def test_a_core_domain_imports_no_framework(tmp_path: Path, context: str, framework: str) -> None:
     assert not contracts_kept(tmp_path, {f"kart.contexts.{context}.domain": f"import {framework}"})
 
 
 def test_a_core_contexts_infrastructure_may_use_a_framework(tmp_path: Path) -> None:
     assert contracts_kept(tmp_path, {"kart.contexts.ordering.infrastructure": "import sqlalchemy"})
+
+
+@pytest.mark.parametrize("framework", FRAMEWORKS)
+def test_the_shared_kernel_imports_no_framework(tmp_path: Path, framework: str) -> None:
+    assert not contracts_kept(tmp_path, {"kart.shared_kernel.money": f"import {framework}"})
+
+
+def test_the_shared_kernel_cannot_import_a_context(tmp_path: Path) -> None:
+    assert not contracts_kept(
+        tmp_path, {"kart.shared_kernel.money": "import kart.contexts.ordering.contracts"}
+    )

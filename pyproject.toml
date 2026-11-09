@@ -54,9 +54,10 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Core domain models are pure Python"
+name = "Core domain models and the shared kernel are pure Python"
 type = "forbidden"
 source_modules = [
+    "kart.shared_kernel",
     "kart.contexts.ordering.domain",
     "kart.contexts.fulfilment.domain",
     "kart.contexts.offer.domain",
@@ -75,7 +76,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"] # pytest asserts
+"tests/**" = ["S101", "PLR2004"] # pytest asserts, literal expected values
 
 [tool.ty.terminal]
 error-on-warning = true

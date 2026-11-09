@@ -28,7 +28,7 @@ src/kart/
     seller_settlement/
     notification/
   app/                          process entrypoints: api, worker, scheduler
-tests/                          architecture tests for the context boundaries, and more to come
+tests/                          architecture tests for the context boundaries, shared kernel tests, and more to come
 deploy/                         Compose files, Debezium config
 ```
 
@@ -36,7 +36,7 @@ Kart is one package. The bounded contexts are kept apart by import-linter, not b
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
 
 How much layering a context gets depends on its subdomain:
 
