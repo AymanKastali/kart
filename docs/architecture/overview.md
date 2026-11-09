@@ -7,39 +7,40 @@ How the Kart MVP backend is built, deployed and wired together. The contexts and
 One modular monolith with strict bounded-context boundaries ([ADR-0003](../adr/0003-modular-monolith-with-strict-context-boundaries.md)). The courier is simulated inside Fulfilment.
 
 - **Language and frameworks:** Python, FastAPI, SQLAlchemy 2.0, Alembic, Pydantic.
-- **Tooling:** uv workspace, ruff, ty, pytest, import-linter.
+- **Tooling:** uv, ruff, ty, pytest, import-linter.
 - **Infrastructure:** Postgres (logical replication enabled), RabbitMQ, Debezium Server, Keycloak, S3-compatible object storage.
 
 ## Repository layout
 
 ```
-pyproject.toml                  uv workspace root
-packages/
-  kart/
-    src/kart/
-      shared_kernel/            Money, typed ids, event envelope
-      contexts/                 one package per bounded context
-        identity/               Keycloak integration, token verification
-        seller_onboarding/
-        catalog/
-        offer/
-        discovery/
-        ordering/
-        fulfilment/
-        payments/
-        seller_settlement/
-        notifications/
-      app/                      process entrypoints: api, worker, scheduler
-deploy/                         Compose files, Debezium config, Caddyfile
+pyproject.toml                  the kart package, tool config and import-linter contracts
+src/kart/
+  shared_kernel/                Money, typed ids, event envelope
+  contexts/                     one package per bounded context
+    identity/                   Keycloak integration, token verification
+    seller_onboarding/
+    catalog/
+    offer/
+    discovery/
+    ordering/
+    fulfilment/
+    payments/
+    seller_settlement/
+    notifications/
+  app/                          process entrypoints: api, worker, scheduler
+tests/                          architecture tests for the context boundaries, and more to come
+deploy/                         Compose files, Debezium config
 ```
+
+Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. Contexts may import `kart.shared_kernel` but never `kart.app`.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`.
 
 How much layering a context gets depends on its subdomain:
 
-- **Core (Ordering, Fulfilment, Offer):** hexagonal. `domain` (pure Python: no FastAPI, SQLAlchemy or Pydantic imports), `application` (use cases and ports), `infrastructure` (repositories, imperative SQLAlchemy mapping, adapters), `api` (FastAPI routers).
+- **Core (Ordering, Fulfilment, Offer):** hexagonal. `domain` (pure Python: no FastAPI, Starlette, SQLAlchemy or Pydantic imports), `application` (use cases and ports), `infrastructure` (repositories, imperative SQLAlchemy mapping, adapters), `api` (FastAPI routers).
 - **Supporting and generic:** thin service plus repository code, still behind `contracts`.
 
 ## Data

@@ -1,0 +1,81 @@
+[project]
+name = "kart"
+version = "0.1.0"
+description = "Kart: a learning clone of the noon.com UAE marketplace, as a modular monolith"
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.16",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+    "ty>=0.0.99",
+]
+
+[tool.pytest]
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "kart"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Contexts depend on each other only through their contracts"
+type = "independence"
+modules = ["kart.contexts.*"]
+# The exemption matches nothing until contexts start talking to each other.
+unmatched_ignore_imports_alerting = "none"
+ignore_imports = [
+    "kart.contexts.** -> kart.contexts.*.contracts",
+    "kart.contexts.** -> kart.contexts.*.contracts.**",
+]
+
+[[tool.importlinter.contracts]]
+name = "The app wires contexts together; contexts build on the shared kernel"
+type = "layers"
+layers = ["kart.app", "kart.contexts", "kart.shared_kernel"]
+
+[[tool.importlinter.contracts]]
+# The exemption above lets contexts import each other's contracts, so contracts must
+# not pass a context's internals through: the internals implement the contracts.
+name = "Contracts do not expose their context's internals"
+type = "forbidden"
+source_modules = ["kart.contexts.*.contracts"]
+forbidden_modules = [
+    "kart.contexts.*.domain",
+    "kart.contexts.*.application",
+    "kart.contexts.*.infrastructure",
+    "kart.contexts.*.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "Core domain models are pure Python"
+type = "forbidden"
+source_modules = [
+    "kart.contexts.ordering.domain",
+    "kart.contexts.fulfilment.domain",
+    "kart.contexts.offer.domain",
+]
+forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D",      # docstrings where they help, not on everything
+    "COM812", # conflicts with the formatter
+    "CPY",    # no copyright headers
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"] # pytest asserts
+
+[tool.ty.terminal]
+error-on-warning = true
