@@ -10,4 +10,5 @@ We considered one login role per context, with its own engine. It is the stronge
 
 - The boundary guards against mistakes, not against hostile code: a context could run `RESET ROLE` to get the login role back. Review catches that, and nothing in a context has a reason to do it.
 - The login role must be able to switch to every context role. The `migrate` command creates the roles and schemas before any revision runs, so it needs a role that can create roles (in Compose, the image's superuser).
+- The `migrate` command creates each context's role and schema itself, before Alembic runs, because Alembic creates the version table inside the schema first. So each context's first revision is an empty baseline that starts its history, and downgrading to base leaves the schema and role in place.
 - A query that genuinely needs data from two contexts can't be written. That is the point: it goes through the other context's `contracts` instead.

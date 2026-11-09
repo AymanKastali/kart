@@ -7,7 +7,7 @@ for its own schema.
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
@@ -22,12 +22,17 @@ def create_database_engine(database_url: str) -> Engine:
 def unit_of_work(engine: Engine, context: str) -> Generator[Session]:
     """One transaction for `context`, committed if the block succeeds, else rolled back.
 
-    It runs as the context's role (see `kart.app.migrations.env`), so Postgres refuses any
+    It runs as the context's role (ADR-0008), so Postgres refuses any
     statement that touches another context's schema, and unqualified names resolve to the
     context's own schema.
     """
     with Session(engine) as session, session.begin():
-        identifier = engine.dialect.identifier_preparer.quote(context)
-        session.execute(text(f"SET LOCAL ROLE {identifier}"))
-        session.execute(text(f"SET LOCAL search_path TO {identifier}"))
+        enter_context(session.connection(), context)
         yield session
+
+
+def enter_context(connection: Connection, context: str) -> None:
+    """Run the rest of `connection`'s transaction as `context`'s role, in its schema."""
+    identifier = connection.dialect.identifier_preparer.quote(context)
+    connection.execute(text(f"SET LOCAL ROLE {identifier}"))
+    connection.execute(text(f"SET LOCAL search_path TO {identifier}"))

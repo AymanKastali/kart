@@ -1,31 +1,31 @@
 """The Alembic environment every context's history runs in, one context at a time.
 
 Before any revision runs, it makes sure the context has a role and a schema that role owns,
-because Alembic creates the version table inside the schema first. Revisions then run as
-that role, so everything they create belongs to the context.
+because Alembic creates the version table inside the schema first. So a context's first
+revision has nothing left to create. Revisions then run as that role, so everything they
+create belongs to the context.
 """
 
-from alembic import context
-from sqlalchemy import create_engine, text
+from alembic import context as alembic
+from sqlalchemy import text
 
-name = context.config.attributes["context"]
-engine = create_engine(context.config.attributes["database_url"])
+from kart.app.database import create_database_engine, enter_context
+
+bounded_context = alembic.config.attributes["context"]
+engine = create_database_engine(alembic.config.attributes["database_url"])
 
 with engine.begin() as connection:
-    identifier = connection.dialect.identifier_preparer.quote(name)
-    connection.execute(
-        text(
-            "DO $$ BEGIN"
-            f" IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{name}')"
-            f" THEN CREATE ROLE {identifier} NOLOGIN; END IF;"
-            " END $$"
-        )
+    identifier = connection.dialect.identifier_preparer.quote(bounded_context)
+    role_exists = connection.scalar(
+        text("SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = :name)"),
+        {"name": bounded_context},
     )
+    if not role_exists:
+        connection.execute(text(f"CREATE ROLE {identifier} NOLOGIN"))
     connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {identifier} AUTHORIZATION {identifier}"))
-    connection.execute(text(f"SET LOCAL ROLE {identifier}"))
-    connection.execute(text(f"SET LOCAL search_path TO {identifier}"))
-    context.configure(connection=connection, version_table_schema=name)
-    with context.begin_transaction():
-        context.run_migrations()
+    enter_context(connection, bounded_context)
+    alembic.configure(connection=connection, version_table_schema=bounded_context)
+    with alembic.begin_transaction():
+        alembic.run_migrations()
 
 engine.dispose()

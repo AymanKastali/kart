@@ -1,4 +1,4 @@
-# One image for every Kart process: compose picks the command (api, worker or scheduler).
+# One image for every Kart process: compose picks the command (api, worker, scheduler or migrate).
 FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /bin/uv
