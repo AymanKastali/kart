@@ -41,6 +41,12 @@ _Avoid_: Scope, area, portal
 **Seller Settlement**: what each Seller earns from each Shipment.
 **Notification**: emails to Customers and Sellers.
 
+## Seller Onboarding
+
+**Seller Application**:
+A Seller's business details submitted for an Operator's review. The Operator approves it, or rejects it with a reason so the Seller can fix it and resubmit. A Seller can list nothing until it is approved.
+_Avoid_: Registration, onboarding request, KYC
+
 ## Catalog
 
 **Product**:

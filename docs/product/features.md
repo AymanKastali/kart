@@ -31,6 +31,26 @@ The full noon.com (UAE) feature set as of late 2026, each feature tagged with wh
 - **Variants:** each variant is its own Product.
 - **Fulfilment:** the Seller packs each Shipment and a simulated courier delivers it (noon's Directship model).
 
+## Slices
+
+The MVP is built in slices. Each slice is one flow: an actor's action, followed through every context that reacts to it up to the last thing anyone can observe (integration events consumed, emails sent, read models updated). No context gets a slice of its own; Notification, Seller Settlement and Discovery grow a little in each slice that triggers them.
+
+- A slice covers its whole flow: the happy path and every failure path.
+- Infrastructure arrives with the first slice that needs it.
+- A slice starts with the tactical design, and its diagram, of any core context it is the first to touch.
+- A slice gets a parent GitHub issue, broken into sub-issues, when work on it starts.
+
+| # | Slice | The flow |
+|---|---|---|
+| 0 | Walking skeleton | Done: every piece of infrastructure wired end to end, with no business logic |
+| 1 | Seller onboarding | A Seller signs up, verifies their email, logs in and can reset their password. They submit a Seller Application; an Operator approves it, or rejects it with a reason and the Seller fixes and resubmits. An unapproved Seller can list nothing. Brings Mailpit |
+| 2 | Category tree | An Operator creates, renames, moves and deletes Categories, and sets each one's Referral Fee. A Category with Products can't be deleted, and a changed Referral Fee applies to future Orders only. Customers see the tree on the storefront |
+| 3 | A Product goes live | A Seller creates a Product with images and their PSKU; an Operator approves it, or rejects it with a reason and the Seller fixes and resubmits. Approved content can be edited without re-approval. The Seller sets the Offer's price, stock and Processing Time, and the Offer is live while the Product is approved and price and stock are above zero. Ends with the Customer's Product page. Brings MinIO |
+| 4 | Cash on Delivery checkout to a confirmed Order | A Customer fills a cart signed out, signs up or in, and the cart carries over. They pick an address from their address book, get a quote and place the Order: re-pricing refuses a stale total, Cash on Delivery is refused above AED 6,500, and stock that can't be reserved makes a Failed Order. A crash while placing is recovered. The confirmed Order becomes one Shipment per Seller, each Seller is emailed, Seller Settlement records each Shipment, and the Customer and Operator see the Order |
+| 5 | Shipment journey | The Seller sees the new Shipment, marks it packed, and the simulated courier takes it through shipped, out for delivery and delivered. Cash on Delivery is recorded as collected, the Settlement becomes final, the Order completes, and the Customer is emailed at each step. A Customer can cancel before packing and a Seller can reject: stock is released, there is no Settlement, the Cash on Delivery Fee is waived if that Shipment carried it, and the Order records the outcome |
+| 6 | Card payment | A Customer pays by card through Stripe, can retry a declined card within the payment window, and an Order unpaid after 30 minutes or abandoned is cancelled, unless the payment succeeded first. Cancelled and rejected Shipments of card Orders are refunded. Brings Stripe |
+| 7 | Customers find Products | Keyword search with autocomplete, browse by Category, filters, sorting, and the Operator-curated home page |
+
 ---
 
 ## 1. Customer
@@ -169,7 +189,7 @@ The full noon.com (UAE) feature set as of late 2026, each feature tagged with wh
 | Feature | Tag | Notes |
 |---|---|---|
 | Sign up with business details (trade licence number, VAT number, IBAN) entered as plain fields | `MVP` | |
-| Operator approval before the Seller can list anything | `MVP` | |
+| Operator approval before the Seller can list anything; a rejected Seller Application carries a reason, and the Seller fixes and resubmits it | `MVP` | |
 | Document upload and identity checks (trade licence, Emirates ID, bank proof) | `Later` | |
 | Brand registration and gated brands or categories | `Later` | |
 | Cross-border (Global) sellers | `Out of scope` | |
