@@ -10,7 +10,7 @@ Kart deploys as one Docker Compose stack. You need only Docker with Compose v2: 
 docker compose -f deploy/compose.yaml up --build --wait
 ```
 
-This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Server, and Kart's processes, all from one image. First `migrate` brings every context's schema up to date, prepares the outbox publication and replication slot, and exits, and `topology` declares the RabbitMQ exchanges and exits; then `api`, `worker`, `scheduler` and `debezium` start. Both run on every `up` and change nothing when there is nothing new. MinIO and Mailpit join as later tickets need them. `--wait` returns once `migrate` and `topology` have succeeded, the infrastructure, `debezium` and the `api` pass their healthchecks, and the `worker` and `scheduler` are running. Then, with the users and passwords from `.env.example`:
+This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Server, and Kart's processes, all from one image. First `migrate` brings every context's schema up to date, prepares the outbox publication and replication slot, and exits, and `topology` declares the RabbitMQ exchange and every context's queues and exits; then `api`, `worker`, `scheduler` and `debezium` start. Both run on every `up` and change nothing when there is nothing new. MinIO and Mailpit join as later tickets need them. `--wait` returns once `migrate` and `topology` have succeeded, the infrastructure, `debezium` and the `api` pass their healthchecks, and the `worker` and `scheduler` are running. Then, with the users and passwords from `.env.example`:
 
 | Service | URL |
 |---|---|

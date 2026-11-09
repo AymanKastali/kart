@@ -1,22 +1,54 @@
 """Declares Kart's RabbitMQ topology: `python -m kart.app.topology`.
 
 Declaring what already exists is a no-op, so Compose runs it on every `up`, before Debezium
-Server publishes to the exchange.
+Server publishes to the exchange. A subscribing context's queue therefore exists before the
+first event it binds to is published.
 """
+
+from typing import TYPE_CHECKING
 
 import pika
 
 from kart.app.settings import Settings
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from kart.building_blocks.inbox import Subscription
+
 # Every integration event is published here, routed by its type (for example
 # `order.confirmed.v1`). Debezium Server names it too: deploy/debezium/application.properties.
 EVENTS_EXCHANGE = "kart.events"
+# Every context's subscription, which the worker consumes. None subscribes to anything yet.
+SUBSCRIPTIONS: tuple[Subscription, ...] = ()
 
 
-def declare_topology(rabbitmq_url: str) -> None:
+def declare_topology(
+    rabbitmq_url: str, subscriptions: Iterable[Subscription] = SUBSCRIPTIONS
+) -> None:
     connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
     try:
-        connection.channel().exchange_declare(EVENTS_EXCHANGE, exchange_type="topic", durable=True)
+        channel = connection.channel()
+        channel.exchange_declare(EVENTS_EXCHANGE, exchange_type="topic", durable=True)
+        for subscription in subscriptions:
+            # An event the worker gives up on goes to the dead-letter queue, through the
+            # default exchange, which routes by queue name. Quorum queues count deliveries.
+            channel.queue_declare(
+                subscription.dead_letter_queue,
+                durable=True,
+                arguments={"x-queue-type": "quorum"},
+            )
+            channel.queue_declare(
+                subscription.queue,
+                durable=True,
+                arguments={
+                    "x-queue-type": "quorum",
+                    "x-dead-letter-exchange": "",
+                    "x-dead-letter-routing-key": subscription.dead_letter_queue,
+                },
+            )
+            for event_type in subscription.handlers:
+                channel.queue_bind(subscription.queue, EVENTS_EXCHANGE, event_type)
     finally:
         connection.close()
 
