@@ -14,10 +14,10 @@ from sqlalchemy.orm.exc import StaleDataError
 from kart.app.database import unit_of_work
 from kart.app.rabbitmq_setup import EVENTS_EXCHANGE, set_up_rabbitmq
 from kart.app.worker import ATTEMPTS, consume
-from kart.building_blocks.inbox import Subscription
-from kart.building_blocks.outbox import write_to_outbox
-from kart.shared_kernel.event_envelope import EventEnvelope
-from tests.building_blocks.conftest import an_event, eventually, rabbitmq_url
+from kart.shared.inbox import Subscription
+from kart.shared.kernel.event_envelope import EventEnvelope
+from kart.shared.outbox import write_to_outbox
+from tests.shared.conftest import an_event, eventually, rabbitmq_url
 
 if TYPE_CHECKING:
     from collections.abc import Generator

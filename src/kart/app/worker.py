@@ -9,8 +9,8 @@ import pika
 from kart.app.background_process import run_until_stopped
 from kart.app.database import create_database_engine, unit_of_work
 from kart.app.subscriptions import SUBSCRIPTIONS
-from kart.building_blocks.inbox import record_in_inbox
-from kart.shared_kernel.event_envelope import EventEnvelope
+from kart.shared.inbox import record_in_inbox
+from kart.shared.kernel.event_envelope import EventEnvelope
 
 if TYPE_CHECKING:
     import threading
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
 
     from kart.app.settings import Settings
-    from kart.building_blocks.inbox import Subscription
+    from kart.shared.inbox import Subscription
 
 _logger = logging.getLogger(__name__)
 # How many deliveries an event gets: if the last one fails too, it goes to the dead-letter queue.

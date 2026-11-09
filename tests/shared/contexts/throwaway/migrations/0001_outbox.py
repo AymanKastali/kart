@@ -2,7 +2,7 @@
 
 from alembic import op
 
-from kart.building_blocks.outbox import create_outbox_table
+from kart.shared.outbox import create_outbox_table
 
 revision = "0001"
 down_revision = None

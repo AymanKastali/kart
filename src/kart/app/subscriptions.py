@@ -7,6 +7,6 @@ None subscribes to anything yet.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from kart.building_blocks.inbox import Subscription
+    from kart.shared.inbox import Subscription
 
 SUBSCRIPTIONS: tuple[Subscription, ...] = ()

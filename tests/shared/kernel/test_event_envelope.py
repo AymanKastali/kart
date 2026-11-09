@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 
-from kart.shared_kernel.event_envelope import EventEnvelope
+from kart.shared.kernel.event_envelope import EventEnvelope
 
 
 def an_envelope() -> EventEnvelope:

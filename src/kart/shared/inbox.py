@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from kart.shared_kernel.event_envelope import EventEnvelope
+    from kart.shared.kernel.event_envelope import EventEnvelope
 
 type Handler = Callable[[Session, EventEnvelope], None]
 

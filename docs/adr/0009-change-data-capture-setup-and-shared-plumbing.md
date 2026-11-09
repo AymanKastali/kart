@@ -1,4 +1,4 @@
-# Migrate prepares change data capture, the envelope is the message, and building blocks hold the outbox
+# Migrate prepares change data capture, the envelope is the message, and the outbox is shared plumbing
 
 Change data capture (CDC) carries every context's outbox to RabbitMQ: Debezium Server reads committed outbox inserts from the write-ahead log ([ADR-0004](0004-rabbitmq-with-transactional-outbox.md)). Left to itself, Debezium creates its publication and replication slot when it first connects. Anything committed before that, or to an outbox added to the publication later, never reaches the slot, and is lost. So `python -m kart.app.migrate`, after it runs every context's history, creates the `outbox` publication, adds every `<context>.outbox` table to it, and creates the logical replication slot `<database>_outbox`. Debezium runs with `publication.autocreate.mode=disabled` and only reads them. The slot then holds the write-ahead log for every event committed while Debezium is down, and Debezium resumes from the offset it keeps in a volume. Slot names are shared by the whole Postgres server, so the slot is named after the database.
 
@@ -6,7 +6,7 @@ The `kart.events` topic exchange is declared in code by `python -m kart.app.rabb
 
 The message body is the whole event envelope as JSON (event id, type, occurred at, trace context and payload), not just the payload, so a consumer gets everything in one place and `EventEnvelope.from_json` reads it back. The event id also goes in the `id` header, which Debezium writes as a JSON string.
 
-The outbox table and its writer live in `kart.building_blocks`, a layer between the contexts and the shared kernel for technical plumbing with no domain meaning. Only a context's `infrastructure` and `migrations` may import it, besides `kart.app`, which wires the contexts together, so the domain and application layers stay free of persistence. A port for publishing events comes with the first context that publishes one.
+The outbox table and its writer live in `kart.shared.outbox`: technical plumbing with no domain meaning, next to the shared kernel in `kart.shared.kernel`, which it builds on. Only a context's `infrastructure` and `migrations` may import it, besides `kart.app`, which wires the contexts together, so the domain and application layers stay free of persistence. A port for publishing events comes with the first context that publishes one.
 
 ## Consequences
 

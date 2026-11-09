@@ -48,13 +48,20 @@ ignore_imports = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The app wires contexts together; contexts build on the building blocks and shared kernel"
+name = "The app wires contexts together; contexts build on what they share"
 type = "layers"
-layers = ["kart.app", "kart.contexts", "kart.building_blocks", "kart.shared_kernel"]
+layers = ["kart.app", "kart.contexts", "kart.shared"]
 
 [[tool.importlinter.contracts]]
-# The building blocks are technical plumbing, so only a context's adapters use them.
-name = "Only a context's infrastructure and migrations use the building blocks"
+# The plumbing may carry the kernel's types, never the other way round.
+name = "The shared plumbing builds on the shared kernel"
+type = "layers"
+containers = ["kart.shared"]
+layers = ["inbox : outbox", "kernel"]
+
+[[tool.importlinter.contracts]]
+# The shared plumbing has no domain meaning, so only a context's adapters use it.
+name = "Only a context's infrastructure and migrations use the shared plumbing"
 type = "forbidden"
 source_modules = [
     "kart.contexts.*.domain",
@@ -62,7 +69,7 @@ source_modules = [
     "kart.contexts.*.api",
     "kart.contexts.*.contracts",
 ]
-forbidden_modules = ["kart.building_blocks"]
+forbidden_modules = ["kart.shared.inbox", "kart.shared.outbox"]
 
 [[tool.importlinter.contracts]]
 # The exemption above lets contexts import each other's contracts, so contracts must
@@ -81,7 +88,7 @@ forbidden_modules = [
 name = "Core domain models and the shared kernel are pure Python"
 type = "forbidden"
 source_modules = [
-    "kart.shared_kernel",
+    "kart.shared.kernel",
     "kart.contexts.ordering.domain",
     "kart.contexts.fulfilment.domain",
     "kart.contexts.offer.domain",

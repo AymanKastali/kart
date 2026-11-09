@@ -17,7 +17,7 @@ from testcontainers.core.container import DockerContainer
 from kart.app.database import create_database_engine
 from kart.app.migrate import migrate
 from kart.app.rabbitmq_setup import set_up_rabbitmq
-from kart.shared_kernel.event_envelope import EventEnvelope
+from kart.shared.kernel.event_envelope import EventEnvelope
 from tests.conftest import new_database
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from testcontainers.community.postgres import PostgresContainer
     from testcontainers.core.network import Network
 
-# tests/building_blocks/<this file> -> the repository root.
+# tests/shared/<this file> -> the repository root.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY = REPO_ROOT / "deploy"
 THROWAWAY_CONTEXTS = Path(__file__).with_name("contexts")
