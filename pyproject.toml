@@ -11,6 +11,7 @@ dependencies = [
     "pika>=1.4.4,<2",
     "psycopg[binary]>=3.3.8,<4",
     "pydantic-settings>=2.16.2,<3",
+    "pyjwt[crypto]>=2.15.1,<3",
     "sqlalchemy>=2.1.8,<3",
     "uvicorn[standard]>=0.54.0,<0.55",
 ]
@@ -83,6 +84,16 @@ forbidden_modules = [
     "kart.contexts.*.infrastructure",
     "kart.contexts.*.api",
 ]
+
+[[tool.importlinter.contracts]]
+# ADR-0005: only Identity knows the app signs in through Keycloak.
+name = "Only Identity uses a Keycloak or OIDC library"
+type = "forbidden"
+source_modules = ["kart.app", "kart.shared", "kart.contexts.*"]
+forbidden_modules = ["jwt", "jose", "authlib", "keycloak"]
+# Others reach the library only through Identity, which is how it should be.
+allow_indirect_imports = true
+ignore_imports = ["kart.contexts.identity.** -> jwt"]
 
 [[tool.importlinter.contracts]]
 name = "Core domain models and the shared kernel are pure Python"

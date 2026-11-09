@@ -121,3 +121,10 @@ def test_the_shared_plumbing_cannot_import_a_context(tmp_path: Path) -> None:
 
 def test_the_shared_kernel_cannot_use_the_shared_plumbing(tmp_path: Path) -> None:
     assert not contracts_kept(tmp_path, {"kart.shared.kernel.money": "import kart.shared.outbox"})
+
+
+@pytest.mark.parametrize(
+    "module", ["kart.app.audiences", "kart.shared.outbox", "kart.contexts.ordering.infrastructure"]
+)
+def test_only_identity_imports_the_token_library(tmp_path: Path, module: str) -> None:
+    assert not contracts_kept(tmp_path, {module: "import jwt"})

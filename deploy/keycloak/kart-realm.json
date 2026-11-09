@@ -1,0 +1,103 @@
+{
+  "realm": "kart",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "customer",
+        "description": "Buys from Sellers."
+      },
+      {
+        "name": "seller",
+        "description": "Lists Products and fulfils Orders."
+      },
+      {
+        "name": "operator",
+        "description": "Runs the marketplace."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "kart-api",
+      "name": "Kart API",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:8000/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "protocolMappers": [
+        {
+          "name": "kart-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "kart-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "customer",
+      "email": "customer@kart.local",
+      "firstName": "Local",
+      "lastName": "Customer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "customer",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "customer"
+      ]
+    },
+    {
+      "username": "seller",
+      "email": "seller@kart.local",
+      "firstName": "Local",
+      "lastName": "Seller",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "seller",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "seller"
+      ]
+    },
+    {
+      "username": "operator",
+      "email": "operator@kart.local",
+      "firstName": "Local",
+      "lastName": "Operator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "operator",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "operator"
+      ]
+    }
+  ]
+}

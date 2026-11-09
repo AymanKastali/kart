@@ -93,7 +93,7 @@ One versioned REST/JSON API with OpenAPI docs, organised by audience. Each route
 | `/v1/operator/...` | Operator | Seller Onboarding and Catalog approval queues, Catalog (Categories, Referral Fees), Discovery (curation), read-only views of Orders and Shipments |
 | `/v1/webhooks/payments` | Stripe | Payment (signature-verified) |
 
-Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). The API verifies the JWT and checks its role against the audience prefix. Inside the app, contexts see only an Account id and a role.
+Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). One app-wide dependency in `kart.app` checks every request against its path: `/v1/customer`, `/v1/seller` and `/v1/operator` need a token for that role, and anything else, such as `/v1/storefront`, is open. It refuses a missing or invalid token with 401 and the wrong role with 403. Identity verifies the JWT: the signature against the realm's cached keys, the expiry, and that it was issued for the `kart-api` client. A token must carry exactly one of Kart's roles. Inside the app, contexts see only a `Principal`: an Account id and a role, from `identity.contracts`. Only Identity imports a JWT or OIDC library.
 
 ## Key flows
 
