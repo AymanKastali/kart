@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     rabbitmq_user: str = Field(validation_alias="RABBITMQ_DEFAULT_USER")
     rabbitmq_password: str = Field(validation_alias="RABBITMQ_DEFAULT_PASS")
     keycloak_url: str
+    # Optional: without them, no traces are exported and errors are only logged.
+    otlp_endpoint: str | None = Field(None, validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    sentry_dsn: str | None = None
 
     @property
     def database_url(self) -> str:

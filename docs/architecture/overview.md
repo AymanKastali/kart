@@ -141,9 +141,9 @@ The flow is choreographed, with no orchestrator.
 
 ## Observability
 
-- OpenTelemetry traces and metrics. Trace context is stored with each outbox row and travels in RabbitMQ message headers, so one trace follows a request across contexts.
-- Structured JSON logs.
-- Exported to Grafana Cloud (free tier). Errors go to Sentry.
+- OpenTelemetry traces and metrics. FastAPI traces each request, and SQL statements and outgoing HTTP calls are traced too. Trace context is stored in the envelope on each outbox row and travels in the message body, so one trace follows a request across contexts ([ADR-0011](../adr/0011-trace-context-travels-in-the-event-envelope.md)). Spans are exported over OTLP to the endpoint in `OTEL_EXPORTER_OTLP_ENDPOINT`, locally to Jaeger.
+- Structured JSON logs: one JSON object per line on stdout, carrying the trace and span ids while a span is active.
+- Exported to Grafana Cloud (free tier). Errors go to Sentry when `SENTRY_DSN` is set.
 - Debezium replication lag and dead-letter queue depth are monitored.
 
 ## Environments and delivery

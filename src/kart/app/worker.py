@@ -5,6 +5,8 @@ from functools import partial
 from typing import TYPE_CHECKING, cast
 
 import pika
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind
 
 from kart.app.background_process import run_until_stopped
 from kart.app.database import create_database_engine, unit_of_work
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     from kart.shared.inbox import Subscription
 
 _logger = logging.getLogger(__name__)
+_tracer = trace.get_tracer(__name__)
 # How many deliveries an event gets: if the last one fails too, it goes to the dead-letter queue.
 ATTEMPTS = 5
 # How long to wait for messages before checking whether to stop.
@@ -71,18 +74,42 @@ def _handle(  # noqa: PLR0913, PLR0917 pika's four callback arguments, after two
     delivery_tag = cast("int", method.delivery_tag)
     try:
         event = EventEnvelope.from_json(body.decode())
-        with unit_of_work(engine, subscription.context) as session:
-            if record_in_inbox(session, event.event_id):
-                subscription.handlers[event.type](session, event)
     except Exception:
         _logger.exception(
-            "%s failed to handle a message from %s", subscription.context, subscription.queue
+            "%s can't read a message from %s", subscription.context, subscription.queue
         )
-        # The quorum queue counts the earlier deliveries in this header.
-        attempts = 1 + int((properties.headers or {}).get("x-acquired-count", 0))
-        channel.basic_nack(delivery_tag, requeue=attempts < ATTEMPTS)
-    else:
-        channel.basic_ack(delivery_tag)
+        _retry_or_dead_letter(channel, delivery_tag, properties)
+        return
+    # A child of the span that published the event, so one trace spans both contexts, and the
+    # failure is logged inside it.
+    with _tracer.start_as_current_span(
+        f"process {subscription.queue}",
+        context=propagate.extract(event.trace_context),
+        kind=SpanKind.CONSUMER,
+    ):
+        try:
+            with unit_of_work(engine, subscription.context) as session:
+                if record_in_inbox(session, event.event_id):
+                    subscription.handlers[event.type](session, event)
+        except Exception:
+            _logger.exception(
+                "%s failed to handle %s from %s",
+                subscription.context,
+                event.type,
+                subscription.queue,
+            )
+            _retry_or_dead_letter(channel, delivery_tag, properties)
+        else:
+            channel.basic_ack(delivery_tag)
+
+
+def _retry_or_dead_letter(
+    channel: BlockingChannel, delivery_tag: int, properties: BasicProperties
+) -> None:
+    """Put the event back on its queue, or once it has had `ATTEMPTS` deliveries, dead-letter it."""
+    # The quorum queue counts the earlier deliveries in this header.
+    attempts = 1 + int((properties.headers or {}).get("x-acquired-count", 0))
+    channel.basic_nack(delivery_tag, requeue=attempts < ATTEMPTS)
 
 
 def _consume_every_subscription(settings: Settings, stopped: threading.Event) -> None:

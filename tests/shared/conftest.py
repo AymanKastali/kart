@@ -107,7 +107,6 @@ def an_event(event_type: str) -> EventEnvelope:
         event_id=uuid4(),
         type=event_type,
         occurred_at=datetime.now(UTC),
-        trace_context={"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
         payload={"widget_id": "W-1", "quantity": 3, "gift": True, "note": None},
     )
 

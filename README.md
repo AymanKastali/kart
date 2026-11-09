@@ -10,7 +10,7 @@ Kart deploys as one Docker Compose stack. You need only Docker with Compose v2: 
 docker compose -f deploy/compose.yaml up --build --wait
 ```
 
-This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Server, and Kart's processes, all from one image. First `migrate` brings every context's schema up to date, prepares the outbox publication and replication slot, and exits, and `rabbitmq-setup` declares the RabbitMQ exchange and every context's queues and exits; then `api`, `worker`, `scheduler` and `debezium` start. Both run on every `up` and change nothing when there is nothing new. MinIO and Mailpit join as later tickets need them. `--wait` returns once `migrate` and `rabbitmq-setup` have succeeded, the infrastructure, `debezium` and the `api` pass their healthchecks, and the `worker` and `scheduler` are running. Then, with the users and passwords from `.env.example`:
+This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Server, Jaeger, and Kart's processes, all from one image. First `migrate` brings every context's schema up to date, prepares the outbox publication and replication slot, and exits, and `rabbitmq-setup` declares the RabbitMQ exchange and every context's queues and exits; then `api`, `worker`, `scheduler` and `debezium` start. Both run on every `up` and change nothing when there is nothing new. MinIO and Mailpit join as later tickets need them. `--wait` returns once `migrate` and `rabbitmq-setup` have succeeded, the infrastructure, `debezium` and the `api` pass their healthchecks, and the `worker` and `scheduler` are running. Then, with the users and passwords from `.env.example`:
 
 | Service | URL |
 |---|---|
@@ -18,6 +18,7 @@ This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Se
 | API docs (OpenAPI) | http://localhost:8000/docs |
 | RabbitMQ management | http://localhost:15672 |
 | Keycloak admin | http://localhost:8080 |
+| Jaeger (traces) | http://localhost:16686 |
 | Postgres | `localhost:5432` |
 
 Keycloak imports the `kart` realm from `deploy/keycloak/kart-realm.json`. It has one local account per role, each with its role as both name and password: `customer`, `seller` and `operator`. To call the API as one of them, get a token from the `kart-api` client and send it as `Authorization: Bearer <token>`:
@@ -27,7 +28,7 @@ curl -s http://localhost:8080/realms/kart/protocol/openid-connect/token \
   -d grant_type=password -d client_id=kart-api -d username=customer -d password=customer
 ```
 
-Ports listen on localhost only. If one is already taken on your machine, publish it elsewhere by setting `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`, `RABBITMQ_MANAGEMENT_HOST_PORT`, `KEYCLOAK_HOST_PORT` or `API_HOST_PORT` in your shell or in `deploy/.env` (git ignores it), for example `POSTGRES_HOST_PORT=5434`. Follow the logs with `docker compose -f deploy/compose.yaml logs -f`. Stop the stack with `docker compose -f deploy/compose.yaml down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
+Ports listen on localhost only. If one is already taken on your machine, publish it elsewhere by setting `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`, `RABBITMQ_MANAGEMENT_HOST_PORT`, `KEYCLOAK_HOST_PORT`, `JAEGER_HOST_PORT` or `API_HOST_PORT` in your shell or in `deploy/.env` (git ignores it), for example `POSTGRES_HOST_PORT=5434`. Follow the logs with `docker compose -f deploy/compose.yaml logs -f`. Stop the stack with `docker compose -f deploy/compose.yaml down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
 
 ### Configuration
 
@@ -35,6 +36,8 @@ Ports listen on localhost only. If one is already taken on your machine, publish
 
 - Postgres, RabbitMQ and Keycloak create their users from it, and Debezium Server connects with them.
 - Every Kart process reads it at startup through `kart.app.settings`, which builds the database and RabbitMQ URLs from it. A process refuses to start if a value is missing.
+
+Every Kart process logs one JSON object per line and exports its traces to `OTEL_EXPORTER_OTLP_ENDPOINT`, the local Jaeger by default. Set it empty to export nothing. Errors go to Sentry only when `SENTRY_DSN` is set; locally it isn't.
 
 To change a value without editing `.env.example`, put it in a `.env` file at the repository root. Git ignores that file, and Compose reads it after `.env.example`.
 
@@ -51,6 +54,6 @@ CI runs these on every pull request and on pushes to `main`:
 | Types | `uv run ty check` |
 | Context boundaries | `uv run lint-imports` |
 | Tests | `uv run pytest` |
-| Deployment | `docker compose -f deploy/compose.yaml up --build --wait` on an empty database, then a check that every context was migrated, the exchanges were declared and Debezium is reading the replication slot |
+| Deployment | `docker compose -f deploy/compose.yaml up --build --wait` on an empty database, then a check that every context was migrated, the exchanges were declared, Debezium is reading the replication slot and the api's traces reach Jaeger |
 
 `lint-imports` enforces the boundaries described in [`overview.md`](docs/architecture/overview.md#inside-a-context): a context imports another context only through its `contracts`, a `contracts` module never exposes its context's internals, contexts never import `kart.app`, only a context's `infrastructure` and `migrations` use the shared plumbing (`kart.shared.outbox`, `kart.shared.inbox`), and both the shared kernel and the `domain` packages of Ordering, Fulfilment and Offer stay free of FastAPI (and Starlette), SQLAlchemy and Pydantic. `tests/shared/kernel/` also runs `ty` on a sample module to prove that passing one kind of id where another is expected fails type checking. The contracts live in `pyproject.toml`, and `tests/architecture/` proves each one catches what it should.

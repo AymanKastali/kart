@@ -5,12 +5,42 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import create_engine, make_url, text
 from testcontainers.community.postgres import PostgresContainer
 from testcontainers.core.network import Network
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from opentelemetry.sdk.trace import ReadableSpan
+    from opentelemetry.trace import SpanKind
+
+
+@pytest.fixture(scope="session")
+def _span_exporter() -> InMemorySpanExporter:
+    # The tracer provider can be set once per process, so every test shares this one.
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+    return exporter
+
+
+@pytest.fixture
+def spans(_span_exporter: InMemorySpanExporter) -> InMemorySpanExporter:
+    """Every span the test finishes, recorded in memory."""
+    _span_exporter.clear()
+    return _span_exporter
+
+
+def the_one_span(spans: InMemorySpanExporter, kind: SpanKind) -> ReadableSpan:
+    """The one finished span of `kind`, failing if there are none or several."""
+    [span] = [span for span in spans.get_finished_spans() if span.kind == kind]
+    return span
 
 
 @pytest.fixture(scope="session")
