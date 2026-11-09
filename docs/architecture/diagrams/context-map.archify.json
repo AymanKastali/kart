@@ -44,10 +44,10 @@
           "ordering",
           "offer",
           "catalog",
-          "payments",
+          "payment",
           "stripe"
         ],
-        "note": "Ordering asks the owners synchronously: Offer reserves stock, Catalog supplies fee rates, Payments starts or cancels the card payment."
+        "note": "Ordering asks the owners synchronously: Offer reserves stock, Catalog supplies fee rates, Payment starts or cancels the card payment."
       },
       {
         "id": "after-order",
@@ -56,7 +56,7 @@
           "ordering",
           "fulfilment",
           "ss",
-          "payments",
+          "payment",
           "offer"
         ],
         "note": "order.confirmed creates Shipments; shipment events release stock, refund, and settle."
@@ -230,9 +230,9 @@
       ]
     },
     {
-      "id": "notifications",
+      "id": "notification",
       "type": "cloud",
-      "label": "Notifications",
+      "label": "Notification",
       "sublabel": "emails",
       "tag": "listens to all",
       "pos": [
@@ -250,9 +250,9 @@
       ]
     },
     {
-      "id": "payments",
+      "id": "payment",
       "type": "cloud",
-      "label": "Payments",
+      "label": "Payment",
       "sublabel": "card, refunds, Cash on Delivery",
       "tag": "Generic",
       "pos": [
@@ -361,8 +361,8 @@
       "variant": "dashed"
     },
     {
-      "id": "payments-ordering",
-      "from": "payments",
+      "id": "payment-ordering",
+      "from": "payment",
       "to": "ordering",
       "label": "start / cancel payment · payment.succeeded",
       "variant": "emphasis"
@@ -396,9 +396,9 @@
       "variant": "dashed"
     },
     {
-      "id": "fulfilment-payments",
+      "id": "fulfilment-payment",
       "from": "fulfilment",
-      "to": "payments",
+      "to": "payment",
       "label": "shipment.*",
       "variant": "dashed"
     },
@@ -410,16 +410,16 @@
       "variant": "dashed"
     },
     {
-      "id": "payments-stripe",
-      "from": "payments",
+      "id": "payment-stripe",
+      "from": "payment",
       "to": "stripe",
       "label": "ACL",
       "variant": "security"
     },
     {
-      "id": "identity-notifications",
+      "id": "identity-notification",
       "from": "identity",
-      "to": "notifications",
+      "to": "notification",
       "label": "account.registered",
       "variant": "dashed"
     }
@@ -439,10 +439,10 @@
       "title": "Relationships",
       "items": [
         "Offer, Catalog → Ordering: customer–supplier",
-        "Payments → Ordering: open host service",
+        "Payment → Ordering: open host service",
         "Ordering → Fulfilment: customer–supplier",
         "Fulfilment → others: published language",
-        "Payments ↔ Stripe: anti-corruption layer"
+        "Payment ↔ Stripe: anti-corruption layer"
       ]
     },
     {
@@ -450,7 +450,7 @@
       "title": "Not drawn as arrows",
       "items": [
         "Identity is an open host service to every context (OIDC token)",
-        "Notifications also reacts to Ordering, Fulfilment, Seller Onboarding and Catalog events",
+        "Notification also reacts to Ordering, Fulfilment, Seller Onboarding and Catalog events",
         "Ordering never reads Discovery at checkout"
       ]
     }

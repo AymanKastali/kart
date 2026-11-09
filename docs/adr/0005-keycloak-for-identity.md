@@ -5,5 +5,5 @@ Sign-up, email verification, password reset, sign-in and roles are a generic sub
 ## Consequences
 
 - The rest of the system sees only a verified token carrying an Account id and one role. Nothing outside the Identity integration knows Keycloak exists.
-- Other contexts learn about new Accounts (for example, the email address Notifications needs) from Identity's integration events, not by querying Keycloak.
+- Other contexts learn about new Accounts (for example, the email address Notification needs) from Identity's integration events, not by querying Keycloak.
 - Moving off Keycloak means migrating Accounts and password hashes.

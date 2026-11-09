@@ -29,9 +29,9 @@ _Avoid_: User, login, profile
 **Discovery**: how Customers find Products (search, browse, Product page) and the Operator-curated home page.
 **Ordering**: Cart, address book, checkout and the Order.
 **Fulfilment**: each Shipment's journey from Seller to Customer.
-**Payments**: card payments, refunds and Cash on Delivery collection.
+**Payment**: card payments, refunds and Cash on Delivery collection.
 **Seller Settlement**: what each Seller earns from each Shipment.
-**Notifications**: emails to Customers and Sellers.
+**Notification**: emails to Customers and Sellers.
 
 ## Catalog
 

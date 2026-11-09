@@ -33,7 +33,7 @@ Everything a Customer bought in one checkout, with every amount fixed.
 - Each Seller group is a future Shipment. Ordering creates its `ShipmentId` and Shipment number at checkout, and Fulfilment creates the Shipment with them. A group holds its lines, its item value, its Delivery Charge, the Cash on Delivery Fee if it carries it, its Estimated Delivery Date, and, once confirmed, its **outcome**: open, delivered, cancelled or rejected.
 - Each line holds the Offer id, Product id, title, image, Category, quantity, unit price including VAT, the VAT in it, and the Referral Fee rate.
 - Groups are ordered by item value, highest first, with ties going to the lowest Seller id. Group 1 is the most valuable Shipment.
-- **Amounts never change once the Order is placed.** A cancelled or rejected group, or a waived Cash on Delivery Fee, is recorded as the group's outcome; the totals stay as they were. Money actually charged, refunded or collected belongs to Payments.
+- **Amounts never change once the Order is placed.** A cancelled or rejected group, or a waived Cash on Delivery Fee, is recorded as the group's outcome; the totals stay as they were. Money actually charged, refunded or collected belongs to Payment.
 - The Order uses optimistic concurrency: a version number checked on save. When two Shipment events for the same Order race, the losing consumer rolls back, its inbox row included, and the message is redelivered.
 
 ## Order Number
@@ -79,7 +79,7 @@ The request carries the address, the payment method, the total the Customer saw,
 3. Ask Offer to reserve stock for the Order: all lines or none, idempotent per Order id.
 4. If Offer reports out of stock, the Order is **failed**. Otherwise the ordered lines leave the Cart and:
    - **Cash on Delivery:** the Order is **confirmed**.
-   - **Card:** the Order is **awaiting payment**. Ordering asks Payments to start a card payment for the full amount, idempotent per Order id, and returns its client secret.
+   - **Card:** the Order is **awaiting payment**. Ordering asks Payment to start a card payment for the full amount, idempotent per Order id, and returns its client secret.
 
 ### Recovering from crashes
 
@@ -98,7 +98,7 @@ It ends in one of three ways:
 - The 30 minutes run out → **cancelled** (`payment_timeout`).
 - The Customer abandons payment → **cancelled** (`customer_abandoned`).
 
-Before cancelling for either reason, Ordering asks Payments synchronously to **cancel the card payment**. If that works, the Order is cancelled and `order.cancelled` is published. If Payments reports the payment already succeeded, the Order is left alone and confirmed when `payment.succeeded` arrives. A late payment can never land on a cancelled Order.
+Before cancelling for either reason, Ordering asks Payment synchronously to **cancel the card payment**. If that works, the Order is cancelled and `order.cancelled` is published. If Payment reports the payment already succeeded, the Order is left alone and confirmed when `payment.succeeded` arrives. A late payment can never land on a cancelled Order.
 
 ## Events
 
@@ -129,7 +129,7 @@ All through the other context's `contracts`:
 |---|---|
 | Offer | Query Offers; reserve stock for an Order; release an Order's reservation |
 | Catalog | Query Products: title, image, Category, Referral Fee rate |
-| Payments | Start a card payment; cancel a card payment |
+| Payment | Start a card payment; cancel a card payment |
 
 ## API
 

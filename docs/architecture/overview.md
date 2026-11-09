@@ -24,9 +24,9 @@ src/kart/
     discovery/
     ordering/
     fulfilment/
-    payments/
+    payment/
     seller_settlement/
-    notifications/
+    notification/
   app/                          process entrypoints: api, worker, scheduler
 tests/                          architecture tests for the context boundaries, and more to come
 deploy/                         Compose files, Debezium config
@@ -84,7 +84,7 @@ One versioned REST/JSON API with OpenAPI docs, organised by audience. Each route
 | `/v1/customer/...` | Customer | Ordering (cart, addresses, checkout, Orders), Fulfilment (Shipment tracking and cancellation) |
 | `/v1/seller/...` | Seller | Seller Onboarding, Catalog, Offer, Fulfilment (Shipment queue, pack, reject), Seller Settlement |
 | `/v1/operator/...` | Operator | Seller Onboarding and Catalog approval queues, Catalog (Categories, Referral Fees), Discovery (curation), read-only views of Orders and Shipments |
-| `/v1/webhooks/payments` | Stripe | Payments (signature-verified) |
+| `/v1/webhooks/payments` | Stripe | Payment (signature-verified) |
 
 Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). The API verifies the JWT and checks its role against the audience prefix. Inside the app, contexts see only an Account id and a role.
 
@@ -102,23 +102,23 @@ Ordering coordinates checkout. The full design, including pricing rules, crash r
 4. If the reservation fails, the Order is **failed** (out of stock).
    If it succeeds:
    - **Cash on Delivery:** the Order is **confirmed**.
-   - **Card:** the Order is **awaiting payment**. Ordering asks Payments to start a card payment (a PaymentIntent for the full amount) and returns its client secret.
+   - **Card:** the Order is **awaiting payment**. Ordering asks Payment to start a card payment (a PaymentIntent for the full amount) and returns its client secret.
 5. A crash between steps 2 and 4 leaves the Order in *placing*, and the scheduler retries it. Reservation is idempotent, so retrying is safe.
 
 ### Card payment
 
 - A declined card doesn't end the Order: the Customer can try another card within 30 minutes.
-- When Stripe's webhook reports success, Payments publishes `payment.succeeded` and Ordering confirms the Order.
-- After 30 minutes unpaid, or if the Customer abandons payment, Ordering first asks Payments synchronously to cancel the card payment. If that works, Ordering cancels the Order and publishes `order.cancelled`, and Offer releases its stock. If the payment already succeeded, the Order waits for `payment.succeeded` instead.
+- When Stripe's webhook reports success, Payment publishes `payment.succeeded` and Ordering confirms the Order.
+- After 30 minutes unpaid, or if the Customer abandons payment, Ordering first asks Payment synchronously to cancel the card payment. If that works, Ordering cancels the Order and publishes `order.cancelled`, and Offer releases its stock. If the payment already succeeded, the Order waits for `payment.succeeded` instead.
 - Payment is captured in full at checkout and refunded per Shipment.
 
 ### Shipments
 
-- `order.confirmed` → Fulfilment creates one Shipment per Seller and Notifications emails each Seller. Seller Settlement records each Shipment's gross amount and Referral Fee.
+- `order.confirmed` → Fulfilment creates one Shipment per Seller and Notification sends each Seller an email. Seller Settlement records each Shipment's gross amount and Referral Fee.
 - The Seller marks the Shipment packed → Fulfilment books a pickup through its `Courier` port.
 - In the MVP, the port's adapter is a **simulated courier inside Fulfilment**. It records the booking in Fulfilment's schema, and the `scheduler` moves the Shipment through shipped → out for delivery → delivered after configurable delays, by calling Fulfilment's own use cases. For Cash on Delivery, delivery records the full amount as collected.
 - A real courier later is a new adapter behind the same port, plus a webhook route.
-- `shipment.delivered` → Payments records any Cash on Delivery collected, Seller Settlement makes the Settlement final, Ordering records the Shipment's outcome on the Order, and Notifications emails the Customer.
+- `shipment.delivered` → Payment records any Cash on Delivery collected, Seller Settlement makes the Settlement final, Ordering records the Shipment's outcome on the Order, and Notification sends the Customer an email.
 - Failed delivery and returns are `Later`; the courier simulates only the happy path.
 
 ### Cancellation and rejection
@@ -127,7 +127,7 @@ The flow is choreographed, with no orchestrator.
 
 - A Customer can cancel a Shipment before it is packed, and a Seller can reject one. Either way, Fulfilment publishes `shipment.cancelled` or `shipment.rejected`, carrying the Shipment's lines and amount.
 - Offer releases the lines' stock.
-- For card Orders, Payments refunds the Shipment's items plus its Delivery Charge.
+- For card Orders, Payment refunds the Shipment's items plus its Delivery Charge.
 - Ordering records the Shipment's outcome on the Order.
 - Seller Settlement discards the Shipment's Settlement.
 - If that Shipment carried the Cash on Delivery Fee, the fee is waived.

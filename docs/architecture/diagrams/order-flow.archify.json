@@ -58,9 +58,9 @@
       "sublabel": "Core"
     },
     {
-      "id": "payments",
+      "id": "payment",
       "type": "cloud",
-      "label": "Payments",
+      "label": "Payment",
       "sublabel": "Generic",
       "sources": [
         {
@@ -94,7 +94,7 @@
     {
       "id": "notif",
       "type": "cloud",
-      "label": "Notifications",
+      "label": "Notification",
       "sublabel": "Generic"
     }
   ],
@@ -160,7 +160,7 @@
     {
       "id": "start-pay",
       "from": "ordering",
-      "to": "payments",
+      "to": "payment",
       "y": 343,
       "label": "start card payment",
       "variant": "emphasis",
@@ -168,7 +168,7 @@
     },
     {
       "id": "intent",
-      "from": "payments",
+      "from": "payment",
       "to": "stripe",
       "y": 398,
       "label": "PaymentIntent (ACL)",
@@ -177,14 +177,14 @@
     {
       "id": "webhook",
       "from": "stripe",
-      "to": "payments",
+      "to": "payment",
       "y": 426,
       "label": "webhook",
       "variant": "return"
     },
     {
       "id": "pay-ok",
-      "from": "payments",
+      "from": "payment",
       "to": "ordering",
       "y": 454,
       "label": "payment.succeeded",
@@ -219,7 +219,7 @@
     {
       "id": "deliv-pay",
       "from": "fulfilment",
-      "to": "payments",
+      "to": "payment",
       "y": 645,
       "label": "shipment.delivered",
       "variant": "dashed",
@@ -261,7 +261,7 @@
     {
       "id": "cancel-pay",
       "from": "fulfilment",
-      "to": "payments",
+      "to": "payment",
       "y": 865,
       "label": "shipment.cancelled / rejected",
       "variant": "dashed",

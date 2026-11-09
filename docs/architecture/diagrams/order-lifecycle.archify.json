@@ -139,7 +139,7 @@
       "title": "Card payment window",
       "items": [
         "Declined cards can be retried for 30 minutes",
-        "Payments cancels the card payment before the Order is cancelled",
+        "Payment cancels the card payment before the Order is cancelled",
         "A payment that already succeeded confirms the Order instead"
       ]
     },
@@ -148,7 +148,7 @@
       "title": "After confirmation",
       "items": [
         "The Order records each Shipment's outcome from shipment.* events",
-        "Amounts never change; refunds belong to Payments",
+        "Amounts never change; refunds belong to Payment",
         "Ending as completed or cancelled publishes nothing"
       ]
     }
