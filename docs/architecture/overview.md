@@ -61,6 +61,8 @@ How much layering a context gets depends on its subdomain:
 
 Integration events use a transactional outbox, relayed by change data capture (CDC) to RabbitMQ ([ADR-0004](../adr/0004-rabbitmq-with-transactional-outbox.md)).
 
+An animated sequence of one request's path, from the api through the outbox, Debezium Server and RabbitMQ to the worker, with the spans sent to Jaeger, is in [`diagrams/request-path.html`](diagrams/request-path.html). Any change to this path or to the tracing in [Observability](#observability) also updates that diagram, in the same commit (see [`diagrams/README.md`](diagrams/README.md)).
+
 1. A context writes its integration events to its own `<schema>.outbox` table in the same transaction as the state change, and deletes them in the same transaction. The rows exist only in the write-ahead log.
 2. **Debezium Server** reads committed outbox inserts from the WAL (`pgoutput`, one connector and one publication covering every outbox table). Its Outbox Event Router publishes each event to the `kart.events` topic exchange, with the event type as the routing key (for example `product.approved.v1`) and the event id in the `id` header. The message body is the whole event envelope as JSON.
 3. Each subscribing context has its own quorum queue (for example `fulfilment.q`), bound to the routing keys it cares about, with a dead-letter queue (`fulfilment.dlq`).

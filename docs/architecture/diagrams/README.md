@@ -7,6 +7,7 @@ Animated [archify](https://github.com/tt-a1i/archify) diagrams of the docs in [`
 | [`context-map.html`](context-map.html) | [`context-map.archify.json`](context-map.archify.json) | The contexts and relationships in [`context-map.md`](../context-map.md) |
 | [`order-flow.html`](order-flow.html) | [`order-flow.archify.json`](order-flow.archify.json) | The Checkout, Card payment, Shipments, and Cancellation and rejection flows in [`overview.md`](../overview.md#key-flows) |
 | [`order-lifecycle.html`](order-lifecycle.html) | [`order-lifecycle.archify.json`](order-lifecycle.archify.json) | The Order states in [`contexts/ordering.md`](../contexts/ordering.md#order-states) |
+| [`request-path.html`](request-path.html) | [`request-path.archify.json`](request-path.archify.json) | One request's path through the api, outbox, Debezium Server, RabbitMQ and worker, in [`overview.md`](../overview.md#messaging) and its [Observability](../overview.md#observability) |
 
 ## Keeping them in sync
 
@@ -19,6 +20,7 @@ ARCHIFY=~/.claude/skills/archify/bin/archify.mjs
 node $ARCHIFY finalize architecture docs/architecture/diagrams/context-map.archify.json docs/architecture/diagrams/context-map.html --repo-root . --quality showcase --out-dir .archify/context-map
 node $ARCHIFY finalize sequence docs/architecture/diagrams/order-flow.archify.json docs/architecture/diagrams/order-flow.html --repo-root . --quality standard --out-dir .archify/order-flow
 node $ARCHIFY finalize lifecycle docs/architecture/diagrams/order-lifecycle.archify.json docs/architecture/diagrams/order-lifecycle.html --repo-root . --quality showcase --out-dir .archify/order-lifecycle
+node $ARCHIFY finalize sequence docs/architecture/diagrams/request-path.archify.json docs/architecture/diagrams/request-path.html --repo-root . --quality showcase --out-dir .archify/request-path
 ```
 
 Never edit the `.html` by hand: it is generated. Set `meta.repository.revision` to a commit that contains the docs being drawn.

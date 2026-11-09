@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "How a Request Travels Through Kart",
+    "output": "docs/architecture/diagrams/request-path.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/AymanKastali/kart",
+      "provider": "github",
+      "revision": "8e44033f0c02897d59bdc84ae2bd103fa99f2f4e"
+    },
+    "legend": {
+      "entries": {
+        "emphasis": {
+          "label": "Inside one database transaction"
+        },
+        "dashed": {
+          "label": "Asynchronous: write-ahead log, broker or span export"
+        }
+      }
+    }
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "Bearer token"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "api",
+      "sublabel": "FastAPI process",
+      "sources": [
+        {
+          "path": "src/kart/app/api.py",
+          "line": 29,
+          "end_line": 44,
+          "label": "app and request tracing"
+        },
+        {
+          "path": "src/kart/app/audiences.py",
+          "line": 22,
+          "end_line": 59,
+          "label": "role by audience prefix"
+        },
+        {
+          "path": "src/kart/shared/outbox.py",
+          "line": 47,
+          "end_line": 70,
+          "label": "write_to_outbox"
+        }
+      ]
+    },
+    {
+      "id": "keycloak",
+      "type": "security",
+      "label": "Keycloak",
+      "sublabel": "kart realm",
+      "sources": [
+        {
+          "path": "src/kart/contexts/identity/contracts.py",
+          "line": 39,
+          "end_line": 66,
+          "label": "AccessTokens.verify"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "schema per context",
+      "sources": [
+        {
+          "path": "src/kart/shared/outbox.py",
+          "line": 1,
+          "end_line": 10,
+          "label": "outbox stays empty"
+        },
+        {
+          "path": "src/kart/app/migrate.py",
+          "line": 48,
+          "end_line": 84,
+          "label": "publication and slot"
+        }
+      ]
+    },
+    {
+      "id": "debezium",
+      "type": "cloud",
+      "label": "Debezium Server",
+      "sublabel": "change data capture",
+      "sources": [
+        {
+          "path": "debezium/application.properties",
+          "line": 5,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "rabbitmq",
+      "type": "messagebus",
+      "label": "RabbitMQ",
+      "sublabel": "kart.events + queues",
+      "sources": [
+        {
+          "path": "src/kart/app/rabbitmq_setup.py",
+          "line": 26,
+          "end_line": 52,
+          "label": "exchange, queue and DLQ"
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "worker",
+      "sublabel": "consumer process",
+      "sources": [
+        {
+          "path": "src/kart/app/worker.py",
+          "line": 59,
+          "end_line": 112,
+          "label": "_handle and retries"
+        },
+        {
+          "path": "src/kart/shared/inbox.py",
+          "line": 50,
+          "end_line": 59,
+          "label": "record_in_inbox"
+        }
+      ]
+    },
+    {
+      "id": "jaeger",
+      "type": "external",
+      "label": "Jaeger",
+      "sublabel": "trace viewer",
+      "sources": [
+        {
+          "path": "src/kart/app/observability.py",
+          "line": 58,
+          "end_line": 70,
+          "label": "OTLP export"
+        },
+        {
+          "path": "compose.yaml",
+          "line": 81,
+          "end_line": 86
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 165,
+      "to": 440,
+      "label": "Request"
+    },
+    {
+      "from": 450,
+      "to": 604,
+      "label": "Change data capture"
+    },
+    {
+      "from": 608,
+      "to": 818,
+      "label": "Consume"
+    }
+  ],
+  "messages": [
+    {
+      "id": "call-route",
+      "from": "client",
+      "to": "api",
+      "y": 185,
+      "label": "call /v1/<audience>/…",
+      "variant": "emphasis",
+      "note": "The path prefix names the role the token must carry"
+    },
+    {
+      "id": "fetch-keys",
+      "from": "api",
+      "to": "keycloak",
+      "y": 245,
+      "label": "fetch signing keys",
+      "variant": "security",
+      "note": "Cached after the first fetch"
+    },
+    {
+      "id": "signing-keys",
+      "from": "keycloak",
+      "to": "api",
+      "y": 300,
+      "label": "JWKS",
+      "variant": "return"
+    },
+    {
+      "id": "write-state-and-event",
+      "from": "api",
+      "to": "postgres",
+      "y": 330,
+      "label": "state change + outbox row",
+      "variant": "emphasis",
+      "note": "One transaction, in a producer span whose trace context is stamped into the envelope"
+    },
+    {
+      "id": "respond",
+      "from": "api",
+      "to": "client",
+      "y": 400,
+      "label": "2xx · 401 · 403 · 503",
+      "variant": "return"
+    },
+    {
+      "id": "api-spans",
+      "from": "api",
+      "to": "jaeger",
+      "y": 428,
+      "label": "spans over OTLP",
+      "variant": "dashed"
+    },
+    {
+      "id": "capture-insert",
+      "from": "postgres",
+      "to": "debezium",
+      "y": 470,
+      "label": "committed insert",
+      "variant": "dashed",
+      "note": "From the write-ahead log, through the slot migrate created"
+    },
+    {
+      "id": "publish-event",
+      "from": "debezium",
+      "to": "rabbitmq",
+      "y": 548,
+      "label": "publish to kart.events",
+      "variant": "dashed",
+      "note": "Routing key is the event type; the body is the envelope"
+    },
+    {
+      "id": "deliver-event",
+      "from": "rabbitmq",
+      "to": "worker",
+      "y": 620,
+      "label": "deliver from <context> queue",
+      "variant": "dashed"
+    },
+    {
+      "id": "handle-and-record",
+      "from": "worker",
+      "to": "postgres",
+      "y": 652,
+      "label": "handler + inbox row",
+      "variant": "emphasis",
+      "note": "One transaction, in a consumer span that continues the envelope's trace; an id already in the inbox is skipped"
+    },
+    {
+      "id": "settle-delivery",
+      "from": "worker",
+      "to": "rabbitmq",
+      "y": 735,
+      "label": "ack",
+      "variant": "return",
+      "note": "A failure nacks for a retry; the fifth failed delivery goes to <context>.dlq"
+    },
+    {
+      "id": "worker-spans",
+      "from": "worker",
+      "to": "jaeger",
+      "y": 800,
+      "label": "spans over OTLP",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "api",
+      "from": 180,
+      "to": 433,
+      "type": "backend"
+    },
+    {
+      "participant": "keycloak",
+      "from": 240,
+      "to": 305,
+      "type": "security"
+    },
+    {
+      "participant": "postgres",
+      "from": 325,
+      "to": 348,
+      "type": "database"
+    },
+    {
+      "participant": "debezium",
+      "from": 465,
+      "to": 553,
+      "type": "cloud"
+    },
+    {
+      "participant": "rabbitmq",
+      "from": 543,
+      "to": 625,
+      "type": "messagebus"
+    },
+    {
+      "participant": "worker",
+      "from": 615,
+      "to": 805,
+      "type": "backend"
+    },
+    {
+      "participant": "postgres",
+      "from": 647,
+      "to": 670,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Never lost, never twice",
+      "items": [
+        "The event commits with the state change, or neither does",
+        "No process polls the outbox: Debezium reads the write-ahead log",
+        "The inbox makes a redelivered event harmless"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "One trace end to end",
+      "items": [
+        "The trace context travels in the envelope body, because Debezium overwrites the traceparent header (ADR-0011)",
+        "Every log line is JSON with the trace id while a span is active"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Not yet exercised",
+      "items": [
+        "No route publishes an event and no context subscribes yet; Slice 1 adds the first"
+      ]
+    }
+  ]
+}
