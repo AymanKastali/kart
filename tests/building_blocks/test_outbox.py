@@ -1,4 +1,4 @@
-"""The outbox end to end: a context commits an event, Debezium Server relays it from the
+"""The outbox end to end: a context commits an event, Debezium Server captures it from the
 write-ahead log, and RabbitMQ delivers it.
 
 Debezium runs with the configuration Compose mounts and RabbitMQ with Kart's topology, against

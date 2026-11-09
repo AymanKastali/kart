@@ -3,7 +3,7 @@
 Each context has its own `outbox` table, in Debezium's outbox layout. Writing an event
 inserts a row and deletes it again in the caller's transaction, so the table stays empty: the
 row exists only in the write-ahead log. Once the transaction commits, Debezium Server reads
-it from there and relays it to RabbitMQ. A rolled-back transaction leaves nothing to read.
+it from there and publishes it to RabbitMQ. A rolled-back transaction leaves nothing to read.
 
 The message body is the whole envelope as JSON, trace context included. The other columns
 copy what Debezium needs to route the event and set its `id` header.
