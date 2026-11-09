@@ -33,7 +33,7 @@ To change a value without editing `.env.example`, put it in a `.env` file at the
 
 ## Development
 
-The checks run on your machine through [uv](https://docs.astral.sh/uv/). Running the app doesn't need it. The tests in `tests/database/` and `tests/building_blocks/` start a throwaway Postgres, RabbitMQ and Debezium Server in Docker through testcontainers, so Docker must be running. Run `uv sync` once: uv installs Python 3.14 if needed, creates `.venv` and installs `kart` from `src/` in editable mode.
+The checks run on your machine through [uv](https://docs.astral.sh/uv/). Running the app doesn't need it. The tests in `tests/database/` and `tests/shared/` start a throwaway Postgres, RabbitMQ and Debezium Server in Docker through testcontainers, so Docker must be running. Run `uv sync` once: uv installs Python 3.14 if needed, creates `.venv` and installs `kart` from `src/` in editable mode.
 
 CI runs these on every pull request and on pushes to `main`:
 
@@ -46,4 +46,4 @@ CI runs these on every pull request and on pushes to `main`:
 | Tests | `uv run pytest` |
 | Deployment | `docker compose -f deploy/compose.yaml up --build --wait` on an empty database, then a check that every context was migrated, the exchanges were declared and Debezium is reading the replication slot |
 
-`lint-imports` enforces the boundaries described in [`overview.md`](docs/architecture/overview.md#inside-a-context): a context imports another context only through its `contracts`, a `contracts` module never exposes its context's internals, contexts never import `kart.app`, only a context's `infrastructure` and `migrations` use `kart.building_blocks`, and both the shared kernel and the `domain` packages of Ordering, Fulfilment and Offer stay free of FastAPI (and Starlette), SQLAlchemy and Pydantic. `tests/shared_kernel/` also runs `ty` on a sample module to prove that passing one kind of id where another is expected fails type checking. The contracts live in `pyproject.toml`, and `tests/architecture/` proves each one catches what it should.
+`lint-imports` enforces the boundaries described in [`overview.md`](docs/architecture/overview.md#inside-a-context): a context imports another context only through its `contracts`, a `contracts` module never exposes its context's internals, contexts never import `kart.app`, only a context's `infrastructure` and `migrations` use the shared plumbing (`kart.shared.outbox`, `kart.shared.inbox`), and both the shared kernel and the `domain` packages of Ordering, Fulfilment and Offer stay free of FastAPI (and Starlette), SQLAlchemy and Pydantic. `tests/shared/kernel/` also runs `ty` on a sample module to prove that passing one kind of id where another is expected fails type checking. The contracts live in `pyproject.toml`, and `tests/architecture/` proves each one catches what it should.

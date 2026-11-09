@@ -71,8 +71,11 @@ def test_a_context_cannot_import_the_app(tmp_path: Path) -> None:
     assert not contracts_kept(tmp_path, {"kart.contexts.offer": "import kart.app"})
 
 
-def test_a_context_may_import_the_shared_kernel(tmp_path: Path) -> None:
-    assert contracts_kept(tmp_path, {"kart.contexts.offer": "import kart.shared_kernel"})
+@pytest.mark.parametrize("layer", ["domain", "application", "api", "contracts"])
+def test_any_part_of_a_context_may_import_the_shared_kernel(tmp_path: Path, layer: str) -> None:
+    assert contracts_kept(
+        tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.kernel.money"}
+    )
 
 
 @pytest.mark.parametrize("context", ["ordering", "fulfilment", "offer"])
@@ -87,30 +90,34 @@ def test_a_core_contexts_infrastructure_may_use_a_framework(tmp_path: Path) -> N
 
 @pytest.mark.parametrize("framework", FRAMEWORKS)
 def test_the_shared_kernel_imports_no_framework(tmp_path: Path, framework: str) -> None:
-    assert not contracts_kept(tmp_path, {"kart.shared_kernel.money": f"import {framework}"})
+    assert not contracts_kept(tmp_path, {"kart.shared.kernel.money": f"import {framework}"})
 
 
 def test_the_shared_kernel_cannot_import_a_context(tmp_path: Path) -> None:
     assert not contracts_kept(
-        tmp_path, {"kart.shared_kernel.money": "import kart.contexts.ordering.contracts"}
+        tmp_path, {"kart.shared.kernel.money": "import kart.contexts.ordering.contracts"}
     )
 
 
 @pytest.mark.parametrize("layer", ["infrastructure", "migrations"])
-def test_a_contexts_adapters_may_use_the_building_blocks(tmp_path: Path, layer: str) -> None:
+def test_a_contexts_adapters_may_use_the_shared_plumbing(tmp_path: Path, layer: str) -> None:
     assert contracts_kept(
-        tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.building_blocks.outbox"}
+        tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.outbox"}
     )
 
 
 @pytest.mark.parametrize("layer", ["domain", "application", "api", "contracts"])
-def test_the_rest_of_a_context_cannot_use_the_building_blocks(tmp_path: Path, layer: str) -> None:
+def test_the_rest_of_a_context_cannot_use_the_shared_plumbing(tmp_path: Path, layer: str) -> None:
     assert not contracts_kept(
-        tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.building_blocks.outbox"}
+        tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.outbox"}
     )
 
 
-def test_the_building_blocks_cannot_import_a_context(tmp_path: Path) -> None:
+def test_the_shared_plumbing_cannot_import_a_context(tmp_path: Path) -> None:
     assert not contracts_kept(
-        tmp_path, {"kart.building_blocks.outbox": "import kart.contexts.ordering.contracts"}
+        tmp_path, {"kart.shared.outbox": "import kart.contexts.ordering.contracts"}
     )
+
+
+def test_the_shared_kernel_cannot_use_the_shared_plumbing(tmp_path: Path) -> None:
+    assert not contracts_kept(tmp_path, {"kart.shared.kernel.money": "import kart.shared.outbox"})

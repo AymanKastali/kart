@@ -15,7 +15,7 @@ from kart.app.subscriptions import SUBSCRIPTIONS
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from kart.building_blocks.inbox import Subscription
+    from kart.shared.inbox import Subscription
 
 # Every integration event is published here, routed by its type (for example
 # `order.confirmed.v1`). Debezium Server names it too: deploy/debezium/application.properties.

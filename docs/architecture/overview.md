@@ -16,8 +16,8 @@ One modular monolith with strict bounded-context boundaries ([ADR-0003](../adr/0
 pyproject.toml                  the kart package, tool config and import-linter contracts
 Dockerfile                      the one image every Kart process runs from
 src/kart/
-  shared_kernel/                Money, typed ids, event envelope
-  building_blocks/              technical plumbing contexts' adapters build on: the outbox table and writer
+  shared/                       technical plumbing contexts' adapters build on: the outbox and the inbox
+    kernel/                     the shared kernel: Money, typed ids, event envelope
   contexts/                     one package per bounded context
     identity/                   Keycloak integration, token verification
     seller_onboarding/
@@ -31,7 +31,7 @@ src/kart/
     notification/
     <context>/migrations/       each context's Alembic history
   app/                          process entrypoints (api, worker, scheduler, migrate, rabbitmq_setup), settings, the shared engine and unit of work, and the Alembic environment every history runs in
-tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
+tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox and inbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
 .env.example                    the local configuration, read by Compose as it is
 deploy/                         Compose file and Debezium Server config
 ```
@@ -40,7 +40,7 @@ Kart is one package. The bounded contexts are kept apart by import-linter, not b
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared_kernel` but never `kart.app`. `kart.building_blocks` holds technical plumbing with no domain meaning, such as the outbox; only a context's `infrastructure` and `migrations` may import it, and it imports no context. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared.kernel` but never `kart.app`. The rest of `kart.shared` is technical plumbing with no domain meaning, such as `kart.shared.outbox`; only a context's `infrastructure` and `migrations` may import it, it imports no context, and the kernel never imports it. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
 
 How much layering a context gets depends on its subdomain:
 
@@ -64,9 +64,9 @@ Integration events use a transactional outbox, relayed by change data capture (C
 3. Each subscribing context has its own quorum queue (for example `fulfilment.q`), bound to the routing keys it cares about, with a dead-letter queue (`fulfilment.dlq`).
 4. The `worker` hands each event to the context's handler for its type, in one unit of work that also records the event id in the context's `<schema>.inbox` table, and acknowledges it only once that commits. A redelivered event finds its id there and is acknowledged without being handled again. A failed handler rolls back, inbox row included, and the event is redelivered, until it fails on its fifth delivery and goes to the dead-letter queue ([ADR-0010](../adr/0010-retries-counted-by-the-quorum-queue.md)).
 
-The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, and `payload`, which holds the whole envelope, trace context included. A context's first migration creates it with `kart.building_blocks.outbox.create_outbox_table()`, and its adapters write events with `write_to_outbox()`, inside the unit of work. `migrate` then adds every outbox to the `outbox` publication and creates the replication slot, and the one-shot `rabbitmq-setup` service declares the `kart.events` exchange, so no event is lost before Debezium first connects or while it is down ([ADR-0009](../adr/0009-change-data-capture-setup-and-building-blocks.md)).
+The outbox table follows Debezium's outbox layout: `id`, `aggregatetype`, `aggregateid`, `type`, and `payload`, which holds the whole envelope, trace context included. A context's first migration creates it with `kart.shared.outbox.create_outbox_table()`, and its adapters write events with `write_to_outbox()`, inside the unit of work. `migrate` then adds every outbox to the `outbox` publication and creates the replication slot, and the one-shot `rabbitmq-setup` service declares the `kart.events` exchange, so no event is lost before Debezium first connects or while it is down ([ADR-0009](../adr/0009-change-data-capture-setup-and-shared-plumbing.md)).
 
-A context subscribes with a `kart.building_blocks.inbox.Subscription`, naming the context and a handler per event type; its first migration creates the inbox with `create_inbox_table()`. `kart.app.subscriptions.SUBSCRIPTIONS` lists every subscription, so `rabbitmq-setup` declares their queues, bindings and dead-letter queues before Debezium publishes, and the `worker` consumes them.
+A context subscribes with a `kart.shared.inbox.Subscription`, naming the context and a handler per event type; its first migration creates the inbox with `create_inbox_table()`. `kart.app.subscriptions.SUBSCRIPTIONS` lists every subscription, so `rabbitmq-setup` declares their queues, bindings and dead-letter queues before Debezium publishes, and the `worker` consumes them.
 
 Integration events carry the state their subscribers need, and they are versioned. A breaking change publishes a new version (`.v2`) alongside the old one until every consumer has moved over. Domain events stay inside their context.
 

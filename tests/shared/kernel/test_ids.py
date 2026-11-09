@@ -3,7 +3,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from kart.shared_kernel.ids import OrderId
+from kart.shared.kernel.ids import OrderId
 
 TY = Path(sys.executable).with_name("ty")
 
@@ -30,7 +30,7 @@ def ty_accepts(tmp_path: Path, source: str) -> bool:
 
 
 USES_AN_ORDER_ID = """
-    from kart.shared_kernel.ids import OfferId, OrderId
+    from kart.shared.kernel.ids import OfferId, OrderId
 
     def cancel(order_id: OrderId) -> None: ...
 

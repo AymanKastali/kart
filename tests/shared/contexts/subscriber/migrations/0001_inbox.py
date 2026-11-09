@@ -4,7 +4,7 @@ handlers write to."""
 from alembic import op
 from sqlalchemy import Column, Uuid
 
-from kart.building_blocks.inbox import create_inbox_table
+from kart.shared.inbox import create_inbox_table
 
 revision = "0001"
 down_revision = None

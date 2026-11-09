@@ -1,6 +1,6 @@
 import pytest
 
-from kart.shared_kernel.money import Money
+from kart.shared.kernel.money import Money
 
 
 @pytest.mark.parametrize(
