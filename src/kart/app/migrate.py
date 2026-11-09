@@ -19,7 +19,7 @@ from kart.app.settings import Settings
 
 _ENVIRONMENT = Path(__file__).with_name("migrations")
 _CONTEXTS = Path(kart.contexts.__file__).parent
-# Debezium Server reads the outboxes through these (deploy/debezium/application.properties).
+# Debezium Server reads the outboxes through these (debezium/application.properties).
 # A publication belongs to its database, but slot names are shared by the whole server, so
 # the slot is named after the database.
 _PUBLICATION = "outbox"

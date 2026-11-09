@@ -1,16 +1,16 @@
-# The whole deployment: `docker compose -f deploy/compose.yaml up --build --wait`, with nothing
-# to set up first or run afterwards. Every service reads `.env.example`, then `.env` if one
-# exists to override it. Ports listen on localhost only; to publish one on another host port,
-# set its `*_HOST_PORT` variable in the shell or in deploy/.env (git ignores it).
+# The whole deployment: `docker compose up --build --wait`, with nothing to set up first or
+# run afterwards. Every service reads `.env.example`, then `.env` if one exists to override it.
+# Ports listen on localhost only; to publish one on another host port, set its `*_HOST_PORT`
+# variable in the shell or in `.env`, which this file reads too.
 name: kart
 
 # Every Kart process runs from the one image.
 x-kart: &kart
   build:
-    context: ..
+    context: .
   env_file: &env
-    - ../.env.example
-    - path: ../.env
+    - .env.example
+    - path: .env
       required: false
 
 x-app: &app
