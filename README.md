@@ -27,7 +27,7 @@ curl -s http://localhost:8080/realms/kart/protocol/openid-connect/token \
   -d grant_type=password -d client_id=kart-api -d username=customer -d password=customer
 ```
 
-Ports listen on localhost only. Follow the logs with `docker compose -f deploy/compose.yaml logs -f`. Stop the stack with `docker compose -f deploy/compose.yaml down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
+Ports listen on localhost only. If one is already taken on your machine, publish it elsewhere by setting `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`, `RABBITMQ_MANAGEMENT_HOST_PORT`, `KEYCLOAK_HOST_PORT` or `API_HOST_PORT` in your shell or in `deploy/.env` (git ignores it), for example `POSTGRES_HOST_PORT=5434`. Follow the logs with `docker compose -f deploy/compose.yaml logs -f`. Stop the stack with `docker compose -f deploy/compose.yaml down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
 
 ### Configuration
 

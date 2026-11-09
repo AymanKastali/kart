@@ -1,6 +1,7 @@
 # The whole deployment: `docker compose -f deploy/compose.yaml up --build --wait`, with nothing
 # to set up first or run afterwards. Every service reads `.env.example`, then `.env` if one
-# exists to override it. Ports listen on localhost only.
+# exists to override it. Ports listen on localhost only; to publish one on another host port,
+# set its `*_HOST_PORT` variable in the shell or in deploy/.env (git ignores it).
 name: kart
 
 # Every Kart process runs from the one image.
@@ -34,7 +35,7 @@ services:
     # Logical decoding lets Debezium read the outbox tables (#6).
     command: ["postgres", "-c", "wal_level=logical"]
     env_file: *env
-    ports: ["127.0.0.1:5432:5432"]
+    ports: ["127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"]
     volumes: [postgres:/var/lib/postgresql]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -45,7 +46,9 @@ services:
     image: rabbitmq:4-management
     restart: unless-stopped
     env_file: *env
-    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    ports:
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
     volumes: [rabbitmq:/var/lib/rabbitmq]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -63,7 +66,7 @@ services:
       - ./keycloak/kart-realm.json:/opt/keycloak/data/import/kart-realm.json:ro
     environment:
       KC_HEALTH_ENABLED: "true"
-    ports: ["127.0.0.1:8080:8080"]
+    ports: ["127.0.0.1:${KEYCLOAK_HOST_PORT:-8080}:8080"]
     healthcheck:
       # The image has no curl, so ask the management port's health endpoint with bash.
       test:
@@ -114,7 +117,7 @@ services:
 
   api:
     <<: *app
-    ports: ["127.0.0.1:8000:8000"]
+    ports: ["127.0.0.1:${API_HOST_PORT:-8000}:8000"]
     healthcheck:
       test:
         - CMD
