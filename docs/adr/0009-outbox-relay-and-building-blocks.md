@@ -1,4 +1,4 @@
-# Migrate prepares the outbox relay; the envelope is the message
+# The outbox relay: migrate prepares it, the envelope is the message, and building blocks hold it
 
 Debezium Server relays every context's outbox to RabbitMQ ([ADR-0004](0004-rabbitmq-with-transactional-outbox.md)). Left to itself, Debezium creates its publication and replication slot when it first connects. Anything committed before that, or to an outbox added to the publication later, never reaches the slot, and is lost. So `python -m kart.app.migrate`, after it runs every context's history, creates the `outbox` publication, adds every `<context>.outbox` table to it, and creates the logical replication slot `<database>_outbox`. Debezium runs with `publication.autocreate.mode=disabled` and only reads them. The slot then holds the write-ahead log for every event committed while Debezium is down, and Debezium resumes from the offset it keeps in a volume. Slot names are shared by the whole Postgres server, so the slot is named after the database.
 

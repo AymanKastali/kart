@@ -5,6 +5,7 @@ Debezium runs with the configuration Compose mounts and RabbitMQ with Kart's top
 a database migrated with a throwaway context that has an outbox.
 """
 
+import contextlib
 import json
 import time
 from datetime import UTC, datetime
@@ -20,7 +21,7 @@ from testcontainers.core.container import DockerContainer
 
 from kart.app.database import create_database_engine, unit_of_work
 from kart.app.migrate import migrate
-from kart.app.topology import declare_topology
+from kart.app.topology import EVENTS_EXCHANGE, declare_topology
 from kart.building_blocks.outbox import write_to_outbox
 from kart.shared_kernel.event_envelope import EventEnvelope
 from tests.conftest import new_database
@@ -40,6 +41,9 @@ RABBITMQ_USER = "kart"
 RABBITMQ_PASSWORD = "kart"  # noqa: S105 a throwaway broker
 # Long enough for Debezium to start, connect and catch up.
 DELIVERY_TIMEOUT_SECONDS = 60
+
+# Events flow only while Debezium runs.
+pytestmark = pytest.mark.usefixtures("debezium")
 
 
 @pytest.fixture(scope="module")
@@ -75,7 +79,6 @@ def rabbitmq(network: Network) -> Iterator[RabbitMqContainer]:
 def debezium(
     network: Network, database_url: str, rabbitmq: RabbitMqContainer
 ) -> Iterator[DockerContainer]:
-    del rabbitmq  # running, with its exchange declared
     url = make_url(database_url)
     container = (
         DockerContainer("quay.io/debezium/server:3.7.1.Final")
@@ -88,8 +91,8 @@ def debezium(
             POSTGRES_PASSWORD=str(url.password),
             POSTGRES_DB=str(url.database),
             RABBITMQ_HOST="rabbitmq",
-            RABBITMQ_DEFAULT_USER=RABBITMQ_USER,
-            RABBITMQ_DEFAULT_PASS=RABBITMQ_PASSWORD,
+            RABBITMQ_DEFAULT_USER=rabbitmq.username,
+            RABBITMQ_DEFAULT_PASS=rabbitmq.password,
         )
         .with_network(network)
     )
@@ -98,8 +101,7 @@ def debezium(
 
 
 @pytest.fixture
-def channel(rabbitmq: RabbitMqContainer, debezium: DockerContainer) -> Iterator[BlockingChannel]:
-    del debezium  # running, so events flow
+def channel(rabbitmq: RabbitMqContainer) -> Iterator[BlockingChannel]:
     connection = pika.BlockingConnection(rabbitmq.get_connection_params())
     yield connection.channel()
     connection.close()
@@ -115,15 +117,25 @@ def an_event(event_type: str) -> EventEnvelope:
     )
 
 
+class Abandoned(Exception):  # noqa: N818 what happened, not an error
+    """Raised inside a unit of work to roll it back."""
+
+
 def commit(engine: Engine, event: EventEnvelope) -> None:
     with unit_of_work(engine, "throwaway") as session:
         write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
 
 
+def roll_back(engine: Engine, event: EventEnvelope) -> None:
+    with contextlib.suppress(Abandoned), unit_of_work(engine, "throwaway") as session:
+        write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
+        raise Abandoned
+
+
 def queue_bound_to(channel: BlockingChannel, routing_key: str) -> str:
     queue = f"test.{uuid4().hex}"
     channel.queue_declare(queue, exclusive=True)
-    channel.queue_bind(queue, "kart.events", routing_key)
+    channel.queue_bind(queue, EVENTS_EXCHANGE, routing_key)
     return queue
 
 
@@ -136,12 +148,6 @@ def next_message(channel: BlockingChannel, queue: str) -> tuple[Mapping[str | by
             return properties.headers or {}, body.decode()
         time.sleep(0.2)
     pytest.fail(f"Nothing arrived on {queue} within {DELIVERY_TIMEOUT_SECONDS}s")
-
-
-def _commit_then_fail(engine: Engine, event: EventEnvelope) -> None:
-    with unit_of_work(engine, "throwaway") as session:
-        write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
-        raise RuntimeError
 
 
 def test_a_committed_event_arrives_on_a_queue_bound_to_its_type(
@@ -162,8 +168,7 @@ def test_a_rolled_back_event_is_never_published(engine: Engine, channel: Blockin
     queue = queue_bound_to(channel, "widget.scrapped.v1")
     rolled_back, committed = an_event("widget.scrapped.v1"), an_event("widget.scrapped.v1")
 
-    with pytest.raises(RuntimeError):
-        _commit_then_fail(engine, rolled_back)
+    roll_back(engine, rolled_back)
     commit(engine, committed)
 
     # Events arrive in commit order, so had the rolled-back one been published, it'd be first.

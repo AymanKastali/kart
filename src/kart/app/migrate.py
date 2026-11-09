@@ -22,8 +22,8 @@ _CONTEXTS = Path(kart.contexts.__file__).parent
 # Debezium Server reads the outboxes through these (deploy/debezium/application.properties).
 # A publication belongs to its database, but slot names are shared by the whole server, so
 # the slot is named after the database.
-PUBLICATION = "outbox"
-SLOT = "{database}_outbox"
+_PUBLICATION = "outbox"
+_SLOT_TEMPLATE = "{database}_outbox"
 
 
 def contexts(directory: Path = _CONTEXTS) -> list[str]:
@@ -45,7 +45,7 @@ def migrate(database_url: str, directory: Path = _CONTEXTS) -> None:
     _prepare_relay(database_url, contexts(directory))
 
 
-def _prepare_relay(database_url: str, contexts: list[str]) -> None:
+def _prepare_relay(database_url: str, schemas: list[str]) -> None:
     """Make sure the publication covers every context's outbox, and the slot exists.
 
     The slot exists from the first migration on, so Postgres keeps every event committed
@@ -56,24 +56,24 @@ def _prepare_relay(database_url: str, contexts: list[str]) -> None:
     with engine.begin() as connection:
         if not connection.scalar(
             text("SELECT EXISTS (SELECT FROM pg_publication WHERE pubname = :name)"),
-            {"name": PUBLICATION},
+            {"name": _PUBLICATION},
         ):
-            connection.execute(text(f"CREATE PUBLICATION {PUBLICATION}"))
+            connection.execute(text(f"CREATE PUBLICATION {_PUBLICATION}"))
         unpublished = connection.scalars(
             text(
                 "SELECT format('%I.%I', table_schema, table_name)"
                 " FROM information_schema.tables"
-                " WHERE table_name = 'outbox' AND table_schema = ANY(:contexts)"
+                " WHERE table_name = 'outbox' AND table_schema = ANY(:schemas)"
                 " AND (table_schema, table_name) NOT IN"
                 " (SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = :name)"
             ),
-            {"contexts": contexts, "name": PUBLICATION},
+            {"schemas": schemas, "name": _PUBLICATION},
         ).all()
         for table in unpublished:
-            connection.execute(text(f"ALTER PUBLICATION {PUBLICATION} ADD TABLE {table}"))
+            connection.execute(text(f"ALTER PUBLICATION {_PUBLICATION} ADD TABLE {table}"))
     # Its own transaction: Postgres refuses to create a slot in one that has written.
     with engine.begin() as connection:
-        slot = SLOT.format(database=connection.scalar(text("SELECT current_database()")))
+        slot = _SLOT_TEMPLATE.format(database=connection.scalar(text("SELECT current_database()")))
         if not connection.scalar(
             text("SELECT EXISTS (SELECT FROM pg_replication_slots WHERE slot_name = :name)"),
             {"name": slot},
