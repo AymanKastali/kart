@@ -6,7 +6,7 @@ The `kart.events` topic exchange is declared in code by `python -m kart.app.topo
 
 The message body is the whole event envelope as JSON (event id, type, occurred at, trace context and payload), not just the payload, so a consumer gets everything in one place and `EventEnvelope.from_json` reads it back. The event id also goes in the `id` header, which Debezium writes as a JSON string.
 
-The outbox table and its writer live in `kart.building_blocks`, a layer between the contexts and the shared kernel for technical plumbing with no domain meaning. Only a context's `infrastructure` and `migrations` may import it, so the domain and application layers stay free of persistence. A port for publishing events comes with the first context that publishes one.
+The outbox table and its writer live in `kart.building_blocks`, a layer between the contexts and the shared kernel for technical plumbing with no domain meaning. Only a context's `infrastructure` and `migrations` may import it, besides `kart.app`, which wires the contexts together, so the domain and application layers stay free of persistence. A port for publishing events comes with the first context that publishes one.
 
 ## Consequences
 

@@ -8,8 +8,8 @@ import pika
 
 from kart.app.background_process import run_until_stopped
 from kart.app.database import create_database_engine, unit_of_work
-from kart.app.topology import SUBSCRIPTIONS
-from kart.building_blocks.inbox import first_delivery
+from kart.app.subscriptions import SUBSCRIPTIONS
+from kart.building_blocks.inbox import record_in_inbox
 from kart.shared_kernel.event_envelope import EventEnvelope
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from kart.building_blocks.inbox import Subscription
 
 _logger = logging.getLogger(__name__)
-# How many times an event is handled before a failure sends it to the dead-letter queue.
+# How many deliveries an event gets: if the last one fails too, it goes to the dead-letter queue.
 ATTEMPTS = 5
 # How long to wait for messages before checking whether to stop.
 _POLL_SECONDS = 0.2
@@ -64,14 +64,15 @@ def _handle(  # noqa: PLR0913, PLR0917 pika's four callback arguments, after two
     """Handle one event in a unit of work, and acknowledge it only once that commits.
 
     If anything fails, the event goes back on the queue to be retried, or to the dead-letter
-    queue once it has failed `ATTEMPTS` times.
+    queue once it has been delivered `ATTEMPTS` times. That includes an event that can never
+    be handled, such as one with no handler for its type.
     """
     # pika types it optional, but every delivery has one.
     delivery_tag = cast("int", method.delivery_tag)
     try:
         event = EventEnvelope.from_json(body.decode())
         with unit_of_work(engine, subscription.context) as session:
-            if first_delivery(session, event.event_id):
+            if record_in_inbox(session, event.event_id):
                 subscription.handlers[event.type](session, event)
     except Exception:
         _logger.exception(

@@ -3,8 +3,10 @@ throwaway contexts in `contexts/`, RabbitMQ with Kart's topology, and Debezium S
 configuration Compose mounts."""
 
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pika
 import pytest
@@ -15,6 +17,7 @@ from testcontainers.core.container import DockerContainer
 from kart.app.database import create_database_engine
 from kart.app.migrate import migrate
 from kart.app.topology import declare_topology
+from kart.shared_kernel.event_envelope import EventEnvelope
 from tests.conftest import new_database
 
 if TYPE_CHECKING:
@@ -97,6 +100,16 @@ def channel(rabbitmq: RabbitMqContainer) -> Iterator[BlockingChannel]:
     connection = pika.BlockingConnection(rabbitmq.get_connection_params())
     yield connection.channel()
     connection.close()
+
+
+def an_event(event_type: str) -> EventEnvelope:
+    return EventEnvelope(
+        event_id=uuid4(),
+        type=event_type,
+        occurred_at=datetime.now(UTC),
+        trace_context={"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
+        payload={"widget_id": "W-1", "quantity": 3, "gift": True, "note": None},
+    )
 
 
 def eventually[T](check: Callable[[], T | None], what: str) -> T:

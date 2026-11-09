@@ -3,7 +3,6 @@ write-ahead log, and RabbitMQ delivers it."""
 
 import contextlib
 import json
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -14,7 +13,7 @@ from kart.app.database import unit_of_work
 from kart.app.topology import EVENTS_EXCHANGE
 from kart.building_blocks.outbox import write_to_outbox
 from kart.shared_kernel.event_envelope import EventEnvelope
-from tests.building_blocks.conftest import eventually
+from tests.building_blocks.conftest import an_event, eventually
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -24,16 +23,6 @@ if TYPE_CHECKING:
 
 # Events flow only while Debezium runs.
 pytestmark = pytest.mark.usefixtures("debezium")
-
-
-def an_event(event_type: str) -> EventEnvelope:
-    return EventEnvelope(
-        event_id=uuid4(),
-        type=event_type,
-        occurred_at=datetime.now(UTC),
-        trace_context={"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
-        payload={"widget_id": "W-1", "quantity": 3, "gift": True, "note": None},
-    )
 
 
 class Abandoned(Exception):  # noqa: N818 what happened, not an error

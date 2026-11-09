@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pika
 
 from kart.app.settings import Settings
+from kart.app.subscriptions import SUBSCRIPTIONS
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -19,8 +20,7 @@ if TYPE_CHECKING:
 # Every integration event is published here, routed by its type (for example
 # `order.confirmed.v1`). Debezium Server names it too: deploy/debezium/application.properties.
 EVENTS_EXCHANGE = "kart.events"
-# Every context's subscription, which the worker consumes. None subscribes to anything yet.
-SUBSCRIPTIONS: tuple[Subscription, ...] = ()
+_QUORUM_QUEUE = {"x-queue-type": "quorum"}
 
 
 def declare_topology(
@@ -33,16 +33,17 @@ def declare_topology(
         for subscription in subscriptions:
             # An event the worker gives up on goes to the dead-letter queue, through the
             # default exchange, which routes by queue name. Quorum queues count deliveries.
+            # Their arguments are fixed once declared (ADR-0010).
             channel.queue_declare(
                 subscription.dead_letter_queue,
                 durable=True,
-                arguments={"x-queue-type": "quorum"},
+                arguments=_QUORUM_QUEUE,
             )
             channel.queue_declare(
                 subscription.queue,
                 durable=True,
                 arguments={
-                    "x-queue-type": "quorum",
+                    **_QUORUM_QUEUE,
                     "x-dead-letter-exchange": "",
                     "x-dead-letter-routing-key": subscription.dead_letter_queue,
                 },
