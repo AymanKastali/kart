@@ -30,7 +30,7 @@ src/kart/
     notification/
   app/                          process entrypoints (api, worker, scheduler) and settings
 tests/                          architecture tests for the context boundaries, shared kernel and app tests, and more to come
-.env.example                    the local configuration; copied to .env
+.env.example                    the local configuration, read by Compose as it is
 deploy/                         Compose file; Debezium config later
 ```
 
@@ -143,7 +143,7 @@ The flow is choreographed, with no orchestrator.
 
 ## Environments and delivery
 
-- **Local:** Docker Compose with Postgres, RabbitMQ, Debezium Server, Keycloak, MinIO, Mailpit and the app processes.
+- **Local:** Docker Compose with Postgres, RabbitMQ, Debezium Server, Keycloak, MinIO, Mailpit and the app processes. `docker compose up` is the whole deployment: no setup before, no manual steps such as migrations after ([ADR-0007](../adr/0007-docker-compose-up-is-the-whole-deployment.md)).
 - **Production:** one VM running Docker Compose, with Caddy for TLS. Email goes through Resend; payments use Stripe test mode.
 - **CI/CD:** GitHub Actions runs ruff, ty, pytest and import-linter, builds the images, and deploys on merge to `main`.
 

@@ -1,20 +1,16 @@
-"""The app's configuration: environment variables, falling back to `.env`.
+"""The app's configuration, read from environment variables only.
 
-`.env` (copied from `.env.example`) is the one place the local users, passwords and hosts
-are set. Docker Compose hands it to every container and overrides the hosts; run on the
-host with `uv run`, the app reads it from the working directory.
+The values come from `.env` (copied from `.env.example`), which Docker Compose hands to
+every container. The app never reads the file itself.
 """
 
 from urllib.parse import quote
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # `.env` also holds the Keycloak admin login, which only Keycloak reads.
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
     postgres_host: str
     postgres_user: str
     postgres_password: str
