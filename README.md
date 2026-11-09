@@ -20,6 +20,13 @@ This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Debezium Se
 | Keycloak admin | http://localhost:8080 |
 | Postgres | `localhost:5432` |
 
+Keycloak imports the `kart` realm from `deploy/keycloak/kart-realm.json`. It has one local account per role, each with its role as both name and password: `customer`, `seller` and `operator`. To call the API as one of them, get a token from the `kart-api` client and send it as `Authorization: Bearer <token>`:
+
+```sh
+curl -s http://localhost:8080/realms/kart/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=kart-api -d username=customer -d password=customer
+```
+
 Ports listen on localhost only. Follow the logs with `docker compose -f deploy/compose.yaml logs -f`. Stop the stack with `docker compose -f deploy/compose.yaml down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
 
 ### Configuration

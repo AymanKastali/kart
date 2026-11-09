@@ -56,6 +56,11 @@ jobs:
             sleep 2
           done
           exit 1
+      - name: Keycloak signs in the local customer
+        run: |
+          curl -fsS http://localhost:8080/realms/kart/protocol/openid-connect/token \
+            -d grant_type=password -d client_id=kart-api -d username=customer -d password=customer \
+            | grep -q '"access_token"'
       - name: logs
         if: failure()
         run: docker compose -f deploy/compose.yaml logs
