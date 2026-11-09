@@ -12,4 +12,4 @@ The outbox table and its writer live in `kart.shared.outbox`: technical plumbing
 
 - A replication slot that nobody reads keeps the write-ahead log forever. If Debezium stays down, Postgres's disk fills, so replication lag must be monitored.
 - A context gets its outbox into the publication by running `migrate`, which Compose does on every `up` before any process that could write events starts.
-- The trace context travels inside the body for now. Copying it into the `traceparent` header comes with tracing (#9). Debezium adds its own `traceparent` and `__debezium.context.*` headers.
+- The trace context travels only inside the body ([ADR-0011](0011-trace-context-travels-in-the-event-envelope.md)). Debezium adds its own `traceparent` and `__debezium.context.*` headers.

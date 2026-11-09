@@ -1,6 +1,6 @@
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -18,8 +18,10 @@ class EventEnvelope:
     event_id: UUID
     type: str
     occurred_at: datetime
-    trace_context: dict[str, str]
     payload: dict[str, JsonValue]
+    # The W3C trace context (`traceparent`, `tracestate`) of the transaction that published it.
+    # The outbox fills it in, so the consumer continues the publisher's trace.
+    trace_context: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not EVENT_TYPE_PATTERN.fullmatch(self.type):

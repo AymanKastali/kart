@@ -39,3 +39,24 @@ def test_a_missing_setting_is_refused(monkeypatch: pytest.MonkeyPatch, name: str
 
     with pytest.raises(ValidationError, match=f"(?i){name}"):
         Settings()
+
+
+@pytest.mark.usefixtures("environment")
+def test_tracing_and_error_reporting_are_off_unless_configured() -> None:
+    settings = Settings()
+
+    assert settings.otlp_endpoint is None
+    assert settings.sentry_dsn is None
+
+
+@pytest.mark.usefixtures("environment")
+def test_tracing_and_error_reporting_read_their_standard_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318")
+    monkeypatch.setenv("SENTRY_DSN", "https://key@sentry.example/1")
+
+    settings = Settings()
+
+    assert settings.otlp_endpoint == "http://jaeger:4318"
+    assert settings.sentry_dsn == "https://key@sentry.example/1"

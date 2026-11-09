@@ -3,21 +3,26 @@ write-ahead log, and RabbitMQ delivers it."""
 
 import contextlib
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
+from opentelemetry import trace
+from opentelemetry.trace import SpanKind
 from sqlalchemy import Engine, text
 
 from kart.app.database import unit_of_work
 from kart.app.rabbitmq_setup import EVENTS_EXCHANGE
 from kart.shared.kernel.event_envelope import EventEnvelope
 from kart.shared.outbox import write_to_outbox
+from tests.conftest import the_one_span
 from tests.shared.conftest import an_event, eventually
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
     from pika.adapters.blocking_connection import BlockingChannel
     from testcontainers.core.container import DockerContainer
 
@@ -70,7 +75,24 @@ def test_a_committed_event_arrives_on_a_queue_bound_to_its_type(
     headers, body = next_message(channel, queue)
     # Debezium writes header values as JSON.
     assert UUID(json.loads(str(headers["id"]))) == event.event_id
-    assert EventEnvelope.from_json(body) == event
+    # Everything as written, but for the trace context the outbox fills in.
+    assert replace(EventEnvelope.from_json(body), trace_context={}) == event
+
+
+def test_an_event_carries_the_trace_it_was_published_in(
+    engine: Engine, channel: BlockingChannel, spans: InMemorySpanExporter
+) -> None:
+    queue = queue_bound_to(channel, "widget.traced.v1")
+
+    with trace.get_tracer(__name__).start_as_current_span("request") as request:
+        commit(engine, an_event("widget.traced.v1"))
+
+    _, body = next_message(channel, queue)
+    publish = the_one_span(spans, SpanKind.PRODUCER)
+    assert publish.parent is not None
+    assert publish.parent.span_id == request.get_span_context().span_id
+    published_in = trace.format_trace_id(request.get_span_context().trace_id)
+    assert published_in in EventEnvelope.from_json(body).trace_context["traceparent"]
 
 
 def test_a_rolled_back_event_is_never_published(engine: Engine, channel: BlockingChannel) -> None:

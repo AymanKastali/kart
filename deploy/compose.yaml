@@ -78,6 +78,13 @@ services:
       interval: 5s
       retries: 30
 
+  # The local trace viewer: Kart's processes export their spans to it over OTLP, and its UI
+  # shows each trace. Traces live in memory, so a restart clears them.
+  jaeger:
+    image: jaegertracing/jaeger:2.23.0
+    restart: unless-stopped
+    ports: ["127.0.0.1:${JAEGER_HOST_PORT:-16686}:16686"]
+
   # Brings every context's schema up to date, then exits. It runs on every `up` and is a
   # no-op when nothing changed; the app processes start only once it has succeeded.
   migrate:
