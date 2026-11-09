@@ -53,6 +53,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-kart",
         "customer"
       ]
     },
@@ -71,6 +72,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-kart",
         "seller"
       ]
     },
@@ -89,6 +91,7 @@
         }
       ],
       "realmRoles": [
+        "default-roles-kart",
         "operator"
       ]
     }
