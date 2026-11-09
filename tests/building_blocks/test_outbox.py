@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import Engine, text
 
 from kart.app.database import unit_of_work
-from kart.app.topology import EVENTS_EXCHANGE
+from kart.app.rabbitmq_setup import EVENTS_EXCHANGE
 from kart.building_blocks.outbox import write_to_outbox
 from kart.shared_kernel.event_envelope import EventEnvelope
 from tests.building_blocks.conftest import an_event, eventually

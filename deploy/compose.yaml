@@ -23,7 +23,7 @@ x-app: &app
       condition: service_healthy
     migrate:
       condition: service_completed_successfully
-    topology:
+    rabbitmq-setup:
       condition: service_completed_successfully
   restart: unless-stopped
 
@@ -80,10 +80,11 @@ services:
       postgres:
         condition: service_healthy
 
-  # Declares Kart's RabbitMQ exchanges, then exits. Declaring is a no-op when they exist.
-  topology:
+  # Declares Kart's RabbitMQ exchange and every context's queues, then exits. Declaring is a
+  # no-op when they exist.
+  rabbitmq-setup:
     <<: *kart
-    command: ["python", "-m", "kart.app.topology"]
+    command: ["python", "-m", "kart.app.rabbitmq_setup"]
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -100,7 +101,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      topology:
+      rabbitmq-setup:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:8080/q/health"]

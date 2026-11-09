@@ -1,5 +1,5 @@
 """Messaging infrastructure, started once per test module: a database migrated with the
-throwaway contexts in `contexts/`, RabbitMQ with Kart's topology, and Debezium Server with the
+throwaway contexts in `contexts/`, RabbitMQ with Kart's exchange, and Debezium Server with the
 configuration Compose mounts."""
 
 import time
@@ -16,7 +16,7 @@ from testcontainers.core.container import DockerContainer
 
 from kart.app.database import create_database_engine
 from kart.app.migrate import migrate
-from kart.app.topology import declare_topology
+from kart.app.rabbitmq_setup import set_up_rabbitmq
 from kart.shared_kernel.event_envelope import EventEnvelope
 from tests.conftest import new_database
 
@@ -61,7 +61,7 @@ def rabbitmq(network: Network) -> Iterator[RabbitMqContainer]:
         .with_network_aliases("rabbitmq")
     )
     with container:
-        declare_topology(rabbitmq_url(container), [])
+        set_up_rabbitmq(rabbitmq_url(container), [])
         yield container
 
 

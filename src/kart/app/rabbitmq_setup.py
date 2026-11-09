@@ -1,4 +1,4 @@
-"""Declares Kart's RabbitMQ topology: `python -m kart.app.topology`.
+"""Sets up Kart's RabbitMQ exchange and queues: `python -m kart.app.rabbitmq_setup`.
 
 Declaring what already exists is a no-op, so Compose runs it on every `up`, before Debezium
 Server publishes to the exchange. A subscribing context's queue therefore exists before the
@@ -23,7 +23,7 @@ EVENTS_EXCHANGE = "kart.events"
 _QUORUM_QUEUE = {"x-queue-type": "quorum"}
 
 
-def declare_topology(
+def set_up_rabbitmq(
     rabbitmq_url: str, subscriptions: Iterable[Subscription] = SUBSCRIPTIONS
 ) -> None:
     connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
@@ -55,4 +55,4 @@ def declare_topology(
 
 
 if __name__ == "__main__":
-    declare_topology(Settings().rabbitmq_url)
+    set_up_rabbitmq(Settings().rabbitmq_url)
