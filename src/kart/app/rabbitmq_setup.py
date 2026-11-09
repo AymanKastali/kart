@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from kart.shared.inbox import Subscription
 
 # Every integration event is published here, routed by its type (for example
-# `order.confirmed.v1`). Debezium Server names it too: deploy/debezium/application.properties.
+# `order.confirmed.v1`). Debezium Server names it too: debezium/application.properties.
 EVENTS_EXCHANGE = "kart.events"
 _QUORUM_QUEUE = {"x-queue-type": "quorum"}
 

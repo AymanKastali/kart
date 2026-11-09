@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 
 # tests/shared/<this file> -> the repository root.
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEPLOY = REPO_ROOT / "deploy"
 THROWAWAY_CONTEXTS = Path(__file__).with_name("contexts")
 RABBITMQ_USER = "kart"
 RABBITMQ_PASSWORD = "kart"  # noqa: S105 a throwaway broker
@@ -78,7 +77,7 @@ def debezium(
     container = (
         DockerContainer("quay.io/debezium/server:3.7.1.Final")
         .with_volume_mapping(
-            DEPLOY / "debezium/application.properties", "/debezium/config/application.properties"
+            REPO_ROOT / "debezium/application.properties", "/debezium/config/application.properties"
         )
         .with_envs(
             POSTGRES_HOST="postgres",

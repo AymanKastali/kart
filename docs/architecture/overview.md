@@ -33,7 +33,9 @@ src/kart/
   app/                          process entrypoints (api, worker, scheduler, migrate, rabbitmq_setup), settings, the shared engine and unit of work, and the Alembic environment every history runs in
 tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox and inbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
 .env.example                    the local configuration, read by Compose as it is
-deploy/                         Compose file and Debezium Server config
+compose.yaml                    the whole deployment (ADR-0007)
+debezium/                       Debezium Server's config
+keycloak/                       the kart realm Keycloak imports
 ```
 
 Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.

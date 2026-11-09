@@ -18,4 +18,4 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 ## Deployment
 
-`docker compose -f deploy/compose.yaml up` is the whole deployment ([ADR-0007](docs/adr/0007-docker-compose-up-is-the-whole-deployment.md)). Never add a step someone runs by hand before or after it. Migrations, realm imports, queue setup and similar start-up work run automatically inside `compose up`, and they are safe to run again. Development checks run on the host through uv.
+`docker compose up` is the whole deployment ([ADR-0007](docs/adr/0007-docker-compose-up-is-the-whole-deployment.md)). Never add a step someone runs by hand before or after it. Migrations, realm imports, queue setup and similar start-up work run automatically inside `compose up`, and they are safe to run again. Development checks run on the host through uv.

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 # tests/app/<this file> -> the repository root.
-REALM_FILE = Path(__file__).resolve().parents[2] / "deploy/keycloak/kart-realm.json"
+REALM_FILE = Path(__file__).resolve().parents[2] / "keycloak/kart-realm.json"
 
 
 @pytest.fixture(scope="session")
