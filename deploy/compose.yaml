@@ -78,6 +78,33 @@ services:
       postgres:
         condition: service_healthy
 
+  # Declares Kart's RabbitMQ exchanges, then exits. Declaring is a no-op when they exist.
+  topology:
+    <<: *kart
+    command: ["python", "-m", "kart.app.topology"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # Relays every context's outbox from the write-ahead log to the kart.events exchange
+  # (ADR-0004). Its offsets live in a volume, so a restart picks up where it left off.
+  debezium:
+    image: quay.io/debezium/server:3.7.1.Final
+    restart: unless-stopped
+    env_file: *env
+    volumes:
+      - ./debezium/application.properties:/debezium/config/application.properties:ro
+      - debezium:/debezium/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      topology:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/q/health"]
+      interval: 5s
+      retries: 30
+
   api:
     <<: *app
     ports: ["127.0.0.1:8000:8000"]
@@ -101,3 +128,4 @@ services:
 volumes:
   postgres:
   rabbitmq:
+  debezium:
