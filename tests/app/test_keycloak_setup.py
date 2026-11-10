@@ -31,6 +31,13 @@ def test_setting_up_the_realm_again_changes_nothing(keycloak: str) -> None:
     assert admin.realm() == before
 
 
+def test_setting_up_the_realm_again_keeps_one_group_of_sellers(keycloak: str) -> None:
+    # The fixture has set the realm up once already.
+    set_up_realm(keycloak)
+
+    assert KeycloakAdmin(keycloak).group_names() == ["sellers"]
+
+
 def test_the_realm_is_given_its_email_server_and_password_rules(keycloak: str) -> None:
     settings = KeycloakAdmin(keycloak).realm()
 

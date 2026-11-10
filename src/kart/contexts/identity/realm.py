@@ -7,7 +7,8 @@ reach an existing stack. Applying the settings through the admin API on every st
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from kart.contexts.identity.keycloak import KeycloakAdminLogin, admin_client
+from kart.contexts.identity.contracts import Role
+from kart.contexts.identity.keycloak import SELLERS_GROUP, KeycloakAdminLogin, admin_client
 
 if TYPE_CHECKING:
     import httpx
@@ -37,8 +38,8 @@ class SmtpServer:
 
 
 def apply_realm_settings(admin: KeycloakAdminLogin, smtp_server: SmtpServer) -> None:
-    """Give the realm its email, email verification, password reset and password policy, and
-    let an Account sign in with only an email and a password.
+    """Give the realm its email, email verification, password reset and password policy, let
+    an Account sign in with only an email and a password, and give it the group of Sellers.
 
     Applying the same settings again changes nothing.
     """
@@ -54,6 +55,21 @@ def apply_realm_settings(admin: KeycloakAdminLogin, smtp_server: SmtpServer) -> 
             },
         ).raise_for_status()
         _make_names_optional(admin_api)
+        _add_sellers_group(admin_api)
+
+
+def _add_sellers_group(admin_api: httpx.Client) -> None:
+    """The group whose members hold the `seller` role, unless the realm has it already."""
+    groups = admin_api.get(
+        "/groups", params={"search": SELLERS_GROUP, "exact": "true"}
+    ).raise_for_status()
+    if groups.json():
+        return
+    created = admin_api.post("/groups", json={"name": SELLERS_GROUP}).raise_for_status()
+    seller_role = admin_api.get(f"/roles/{Role.SELLER}").raise_for_status().json()
+    admin_api.post(
+        f"{created.headers['Location']}/role-mappings/realm", json=[seller_role]
+    ).raise_for_status()
 
 
 def _make_names_optional(admin_api: httpx.Client) -> None:

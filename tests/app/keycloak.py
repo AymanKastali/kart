@@ -81,6 +81,9 @@ class KeycloakAdmin:
         """The realm's settings, as the admin API represents them."""
         return self._get("")
 
+    def group_names(self) -> list[str]:
+        return [group["name"] for group in self._get("/groups")]
+
     def account_id(self, username: str) -> str:
         return self._account_id(f"username={username}")
 
@@ -96,6 +99,11 @@ class KeycloakAdmin:
             f"{account.headers['Location']}/role-mappings/realm", json=realm_roles
         ).raise_for_status()
         return credentials
+
+    def new_account_named(self, username: str) -> None:
+        """A new Account without a role, named `username`, whose email is another address."""
+        account = _account(Credentials(username, "password"))
+        self._post("/users", account | {"email": f"account-{uuid4().hex}@example.com"})
 
     def new_client_with_one_second_tokens(self) -> str:
         """The id of a new client whose tokens, also for the API, expire after a second."""
