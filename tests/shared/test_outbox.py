@@ -12,7 +12,7 @@ from opentelemetry import trace
 from opentelemetry.trace import SpanKind
 from sqlalchemy import Engine, text
 
-from kart.app.database import unit_of_work
+from kart.app.database import transaction
 from kart.app.rabbitmq_setup import EVENTS_EXCHANGE
 from kart.shared.kernel.event_envelope import EventEnvelope
 from kart.shared.outbox import write_to_outbox
@@ -33,7 +33,7 @@ class Abandoned(Exception):  # noqa: N818 what happened, not an error
 
 
 def roll_back(engine: Engine, event: EventEnvelope) -> None:
-    with contextlib.suppress(Abandoned), unit_of_work(engine, THROWAWAY) as session:
+    with contextlib.suppress(Abandoned), transaction(engine, THROWAWAY) as session:
         write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
         raise Abandoned
 
@@ -93,7 +93,7 @@ def test_the_outbox_table_stays_empty_because_events_live_only_in_the_write_ahea
 ) -> None:
     publish_through_outbox(engine, an_event("widget.counted.v1"))
 
-    with unit_of_work(engine, THROWAWAY) as session:
+    with transaction(engine, THROWAWAY) as session:
         assert session.scalar(text("SELECT count(*) FROM outbox")) == 0
 
 

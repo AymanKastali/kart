@@ -39,7 +39,7 @@ def test_a_type_without_a_context_name_and_version_is_refused(event_type: str) -
 
 def test_a_time_without_a_timezone_is_refused() -> None:
     with pytest.raises(ValueError, match="timezone"):
-        replace(an_envelope(), occurred_at=datetime(2026, 11, 9, 6, 7, 44))  # noqa: DTZ001
+        replace(an_envelope(), occurred_at=datetime(2026, 11, 9, 6, 7, 44))  # noqa: DTZ001 the naive time under test
 
 
 def test_a_payload_that_is_not_valid_json_is_refused() -> None:

@@ -22,6 +22,9 @@ finishes a turn. Another hook formats and lints each Python file Claude edits, a
 | Everything else ruff checks | ruff (`select = ["ALL"]`) | |
 | Types | ty | no errors or warnings |
 | Context boundaries | import-linter | the contracts in `pyproject.toml` |
+| A context's layers depend inwards | import-linter | `api` and `infrastructure` build on `application`, which builds on `domain`; neither of the outer two imports the other |
+| Use cases reach the outside world only through ports | import-linter | no `application` or `domain` imports a database, HTTP, broker, token or web library |
+| Interfaces are Protocols | ruff (`TID251`) | no `abc.ABC`, `ABCMeta` or `abstractmethod` |
 
 A `noqa` silences one rule on one line, and says why, as in
 `# noqa: PLR0913, PLR0917 pika's four callback arguments, after two of ours`. It is for code a
@@ -56,7 +59,43 @@ library or framework shapes, never for code that is merely long.
 - Values that always travel together become one type (`SmtpServer`, not a host, a port and a
   sender passed side by side).
 - A domain idea gets its own type rather than a bare `str` or `int`, as the kernel's ids do.
-- Depend on what a thing does, not how: a context reaches another only through its `contracts`.
+- Depend on what a thing does, not how: a context reaches another only through its `contracts`,
+  and a use case reaches the outside world only through its ports (see Design below).
+
+### Design: SOLID, ports and adapters
+
+Kart is object-oriented Python, and its design follows the SOLID principles.
+
+- **Single responsibility.** A class has one reason to change. A use case decides; it doesn't
+  also build SQL, call HTTP or parse JSON.
+- **Dependency inversion.** A use case depends on what it needs, never on how that is done.
+  Anything outside the process (a database, Keycloak, RabbitMQ, a payment provider, the clock
+  when a rule depends on it) sits behind a **port** the use case declares in its context's
+  `application/ports.py`, and an **adapter** in `infrastructure` implements it. The adapter is
+  named after what it uses and the port it implements: `PostgresSellerApplicationRepository`,
+  `KeycloakIdentityProvider`. A port that the app or another context calls, not a use case,
+  lives in the context's `contracts` instead, as Identity's `AccessTokens` does. An event
+  handler is a use case too: the inbox hands it its context's repository, never a session.
+- **Interfaces are `typing.Protocol`s**, never `abc.ABC`. An adapter implements one by its shape
+  alone, without inheriting from it, so the port never imports its adapters. The type checker
+  checks the fit where the app hands the adapter in.
+- **Interface segregation.** A port holds only what its use cases call, named in the context's
+  own words. Two use cases that need different things get two ports.
+- **Dependencies come in through the constructor.** No class builds its own collaborators or
+  reads settings. `kart.app` is the one place that builds adapters and hands them in. An adapter
+  that needs a library's client takes it too, and a function beside it builds both for the app
+  (`keycloak_access_tokens`).
+- **Open for extension.** When behaviour varies by kind (a courier, a payment method), each kind
+  is a class that implements one Protocol (Strategy), so a new kind is a new class, not another
+  branch in an `if` over the kinds.
+- **Liskov substitution.** Anything that implements a Protocol keeps its promises: the same
+  errors, the same meaning. Inherit only to satisfy a framework (`Exception`, `StrEnum`,
+  Pydantic's `BaseModel`). Otherwise compose.
+- **Patterns, by their usual names, where they fit.** Repository for an aggregate's storage,
+  Unit of Work (`kart.shared.kernel.unit_of_work`) for a use case's transaction, Adapter for
+  anything outside, Strategy for behaviour that varies. A pattern is used for the need in front
+  of it, never in advance: a Protocol arrives with its first port, not for code inside the
+  process that has one implementation and no outside world behind it.
 
 ### Comments
 

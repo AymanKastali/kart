@@ -21,7 +21,7 @@ def test_an_id_made_later_sorts_later() -> None:
 def ty_accepts(tmp_path: Path, source: str) -> bool:
     module = tmp_path / "uses_ids.py"
     module.write_text(textwrap.dedent(source))
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(  # noqa: S603 (fixed executable, test-controlled arguments)
         [TY, "check", "--python", sys.prefix, "--no-progress", str(module)],
         capture_output=True,
         text=True,

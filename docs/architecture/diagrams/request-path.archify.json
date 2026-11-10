@@ -9,7 +9,7 @@
     "repository": {
       "url": "https://github.com/AymanKastali/kart",
       "provider": "github",
-      "revision": "8e44033f0c02897d59bdc84ae2bd103fa99f2f4e"
+      "revision": "662ddb0f96212e668418722d1e240049cda526e3"
     },
     "legend": {
       "entries": {
@@ -49,8 +49,8 @@
         },
         {
           "path": "src/kart/shared/outbox.py",
-          "line": 47,
-          "end_line": 70,
+          "line": 52,
+          "end_line": 75,
           "label": "write_to_outbox"
         }
       ]
@@ -62,9 +62,9 @@
       "sublabel": "kart realm",
       "sources": [
         {
-          "path": "src/kart/contexts/identity/contracts.py",
-          "line": 39,
-          "end_line": 66,
+          "path": "src/kart/contexts/identity/infrastructure/keycloak_access_tokens.py",
+          "line": 36,
+          "end_line": 53,
           "label": "AccessTokens.verify"
         }
       ]
@@ -130,8 +130,8 @@
         },
         {
           "path": "src/kart/shared/inbox.py",
-          "line": 50,
-          "end_line": 59,
+          "line": 58,
+          "end_line": 67,
           "label": "record_in_inbox"
         }
       ]

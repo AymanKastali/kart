@@ -4,7 +4,7 @@ handlers write to."""
 from alembic import op
 from sqlalchemy import Column, Uuid
 
-from kart.shared.inbox import create_inbox_table
+from kart.shared.inbox import create_inbox_table, drop_inbox_table
 
 revision = "0001"
 down_revision = None
@@ -20,4 +20,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("handled")
-    op.drop_table("inbox")
+    drop_inbox_table()

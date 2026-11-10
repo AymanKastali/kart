@@ -1,7 +1,6 @@
 """The Accounts Identity has registered, in its own schema, and the `account.registered.v1`
 event that tells other contexts about each one (ADR-0005)."""
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -15,8 +14,7 @@ from kart.shared.outbox import write_to_outbox
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from kart.contexts.identity.contracts import Role
-    from kart.shared.kernel.ids import AccountId
+    from kart.contexts.identity.domain.account import Account
 
 _accounts = Table(
     "accounts",
@@ -27,25 +25,26 @@ _accounts = Table(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class Account:
-    account_id: AccountId
-    role: Role
-    email: str
+class PostgresAccountRepository:
+    """Implements `AccountRepository` inside one transaction."""
 
+    def __init__(self, session: Session) -> None:
+        self._session = session
 
-def register(session: Session, account: Account) -> None:
-    """Record the Account and publish `account.registered.v1`, unless it is recorded already."""
-    recorded = session.scalar(
-        insert(_accounts)
-        .values(account_id=account.account_id, role=account.role, email=account.email)
-        .on_conflict_do_nothing()
-        .returning(_accounts.c.account_id)
-    )
-    if recorded is not None:
-        write_to_outbox(
-            session, _registered(account), aggregate_type="account", aggregate_id=account.account_id
+    def register(self, account: Account) -> None:
+        recorded = self._session.scalar(
+            insert(_accounts)
+            .values(account_id=account.account_id, role=account.role, email=account.email)
+            .on_conflict_do_nothing()
+            .returning(_accounts.c.account_id)
         )
+        if recorded is not None:
+            write_to_outbox(
+                self._session,
+                _registered(account),
+                aggregate_type="account",
+                aggregate_id=account.account_id,
+            )
 
 
 def _registered(account: Account) -> EventEnvelope:

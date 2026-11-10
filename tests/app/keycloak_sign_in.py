@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from kart.contexts.identity.keycloak import REALM
+from kart.contexts.identity.infrastructure.keycloak import REALM
 
 if TYPE_CHECKING:
     from tests.mailpit import Email

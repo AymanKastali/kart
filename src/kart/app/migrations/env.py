@@ -6,7 +6,7 @@ revision has nothing left to create. Revisions then run as that role, so everyth
 create belongs to the context.
 """
 
-from alembic import context as alembic
+from alembic import context as migration_context
 from sqlalchemy import Connection, text
 
 from kart.app.database import create_database_engine, enter_context
@@ -23,14 +23,14 @@ def _ensure_role_and_schema(connection: Connection, bounded_context: str) -> Non
     connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {identifier} AUTHORIZATION {identifier}"))
 
 
-bounded_context = alembic.config.attributes["context"]
-engine = create_database_engine(alembic.config.attributes["database_url"])
+bounded_context = migration_context.config.attributes["context"]
+engine = create_database_engine(migration_context.config.attributes["database_url"])
 
 with engine.begin() as connection:
     _ensure_role_and_schema(connection, bounded_context)
     enter_context(connection, bounded_context)
-    alembic.configure(connection=connection, version_table_schema=bounded_context)
-    with alembic.begin_transaction():
-        alembic.run_migrations()
+    migration_context.configure(connection=connection, version_table_schema=bounded_context)
+    with migration_context.begin_transaction():
+        migration_context.run_migrations()
 
 engine.dispose()

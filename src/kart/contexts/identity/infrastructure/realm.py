@@ -8,7 +8,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from kart.contexts.identity.contracts import Role
-from kart.contexts.identity.keycloak import SELLERS_GROUP, KeycloakAdminLogin, admin_client
+from kart.contexts.identity.infrastructure.keycloak import (
+    SELLERS_GROUP,
+    KeycloakAdminLogin,
+    admin_client,
+)
 
 if TYPE_CHECKING:
     import httpx

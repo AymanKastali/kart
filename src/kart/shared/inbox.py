@@ -3,7 +3,8 @@
 A context subscribes with a handler per event type. The worker runs each handler in a unit of
 work that also inserts the event's id into the context's `inbox` table, so a redelivered event
 finds its id already there and isn't handled again. A handler that fails rolls the inbox row
-back with everything else, so the event is retried.
+back with everything else, so the event is retried. The handler is handed the context's
+repository bound to that transaction, never the session itself (ADR-0012).
 """
 
 from dataclasses import dataclass
@@ -21,17 +22,19 @@ if TYPE_CHECKING:
 
     from kart.shared.kernel.event_envelope import EventEnvelope
 
-type Handler = Callable[[Session, EventEnvelope], None]
+type Handler[R] = Callable[[R, EventEnvelope], None]
 
 _inbox = Table("inbox", MetaData(), Column("event_id", Uuid, primary_key=True))
 
 
 @dataclass(frozen=True, slots=True)
-class Subscription:
-    """The events `context` reacts to, each with the handler that reacts to it."""
+class Subscription[R]:
+    """The events `context` reacts to, each with the handler that reacts to it, and the
+    `repository` each handler is handed, bound to the transaction it runs in."""
 
     context: str
-    handlers: Mapping[str, Handler]
+    repository: Callable[[Session], R]
+    handlers: Mapping[str, Handler[R]]
 
     @property
     def queue(self) -> str:
@@ -45,6 +48,11 @@ class Subscription:
 def create_inbox_table() -> None:
     """Create the inbox in the context's schema. Call it from one of the context's revisions."""
     _inbox.create(op.get_bind())
+
+
+def drop_inbox_table() -> None:
+    """Drop the inbox from the context's schema, in the revision's downgrade."""
+    _inbox.drop(op.get_bind())
 
 
 def record_in_inbox(session: Session, event_id: UUID) -> bool:

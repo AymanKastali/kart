@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from kart.app.api import create_app
-from kart.contexts.identity.contracts import Principal, Role, signed_in_principal
+from kart.contexts.identity.contracts import Principal, Role
+from kart.contexts.identity.contracts.signed_in import signed_in_principal
 from tests.app.environment import set_environment
 from tests.app.keycloak import (
     KeycloakAdmin,
@@ -39,7 +40,7 @@ def whoami(principal: Annotated[Principal, Depends(signed_in_principal)]) -> dic
 
 
 @open_routes.get("/anything")
-def anything() -> dict[str, str]:
+def open_route() -> dict[str, str]:
     return {}
 
 

@@ -44,4 +44,4 @@ def test_an_amount_is_immutable() -> None:
     amount = Money(100)
 
     with pytest.raises(AttributeError):
-        amount.fils = 200  # ty: ignore[invalid-assignment]
+        amount.fils = 200  # ty: ignore[invalid-assignment] the assignment under test
