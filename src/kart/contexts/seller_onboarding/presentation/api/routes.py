@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
 from kart.contexts.identity.contracts import Principal  # noqa: TC001 FastAPI reads it
@@ -16,11 +16,9 @@ from kart.contexts.seller_onboarding.domain.seller_application import (
     Iban,
     NoSellerApplicationError,
     SellerApplication,
-    SellerApplicationChangedError,
     SellerApplicationSubmittedError,
     Status,
     VatNumber,
-    Version,
     parse_iban,
     parse_vat_number,
 )
@@ -59,15 +57,12 @@ class BusinessDetailsJson(BaseModel):
 
 class SubmissionJson(BaseModel):
     business_details: BusinessDetailsJson
-    # The version of the Seller Application the Seller read and corrects; left out the first time.
-    version: Version | None = None
 
 
 class SellerApplicationJson(BaseModel):
     seller_id: UUID
     business_details: BusinessDetailsJson
     status: Status
-    version: Version
 
     @classmethod
     def from_seller_application(
@@ -79,7 +74,6 @@ class SellerApplicationJson(BaseModel):
                 seller_application.business_details
             ),
             status=seller_application.status,
-            version=seller_application.version,
         )
 
 
@@ -96,59 +90,33 @@ def read_seller_application(
     try:
         seller_application = applications.read(principal.account_id)
     except NoSellerApplicationError:
-        raise _no_seller_application() from None
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "This Seller has submitted no Seller Application"
+        ) from None
     return SellerApplicationJson.from_seller_application(seller_application)
 
 
-@router.put("")
+@router.put(
+    "",
+    responses={status.HTTP_201_CREATED: {"description": "The first submission created it"}},
+)
 def submit_seller_application(
     submission: SubmissionJson,
     principal: Annotated[Principal, Depends(signed_in_principal)],
     applications: Annotated[SellerApplications, Depends(seller_applications)],
+    *,
+    response: Response,
 ) -> SellerApplicationJson:
-    business_details = submission.business_details.to_business_details()
-    if submission.version is None:
-        seller_application = _first_submission(applications, principal, business_details)
-    else:
-        seller_application = _correction(
-            applications, principal, business_details, read_version=submission.version
-        )
-    return SellerApplicationJson.from_seller_application(seller_application)
-
-
-def _first_submission(
-    applications: SellerApplications, principal: Principal, business_details: BusinessDetails
-) -> SellerApplication:
+    """Creates the Seller's Seller Application, or replaces its business details."""
     try:
-        return applications.submit(principal.account_id, business_details)
+        submitted = applications.submit(
+            principal.account_id, submission.business_details.to_business_details()
+        )
     except SellerApplicationSubmittedError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "This Seller has submitted a Seller Application already: correct it at the version it "
-            "read",
+            "Another submission created this Seller Application at the same time: submit again",
         ) from None
-
-
-def _correction(
-    applications: SellerApplications,
-    principal: Principal,
-    business_details: BusinessDetails,
-    *,
-    read_version: Version,
-) -> SellerApplication:
-    try:
-        return applications.correct(
-            principal.account_id, business_details, read_version=read_version
-        )
-    except NoSellerApplicationError:
-        raise _no_seller_application() from None
-    except SellerApplicationChangedError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "The Seller Application has changed since that version"
-        ) from None
-
-
-def _no_seller_application() -> HTTPException:
-    return HTTPException(
-        status.HTTP_404_NOT_FOUND, "This Seller has submitted no Seller Application"
-    )
+    if submitted.created:
+        response.status_code = status.HTTP_201_CREATED
+    return SellerApplicationJson.from_seller_application(submitted.seller_application)

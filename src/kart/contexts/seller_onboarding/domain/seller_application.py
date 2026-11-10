@@ -13,8 +13,6 @@ if TYPE_CHECKING:
 # A UAE Tax Registration Number.
 VatNumber = NewType("VatNumber", str)
 Iban = NewType("Iban", str)
-# Counts a Seller Application's changes, so a write based on an older one is refused.
-Version = NewType("Version", int)
 
 _VAT_NUMBER = re.compile(r"[0-9]{15}")
 _UAE_IBAN = re.compile(r"AE[0-9]{21}")
@@ -66,28 +64,15 @@ class SellerApplication:
     seller_id: SellerId
     business_details: BusinessDetails
     status: Status
-    version: Version
 
-    def corrected(
-        self, business_details: BusinessDetails, *, read_version: Version
-    ) -> SellerApplication:
-        """The Seller Application with the business details the Seller corrected at the version it
-        read. Unchanged details leave it, and its version, as it is.
-
-        Raises `SellerApplicationChangedError` unless `read_version` is its version.
-        """
-        if read_version != self.version:
-            raise SellerApplicationChangedError
-        if business_details == self.business_details:
-            return self
-        return replace(self, business_details=business_details, version=Version(self.version + 1))
+    def corrected(self, business_details: BusinessDetails) -> SellerApplication:
+        """The Seller Application with the business details the Seller corrected, still pending."""
+        return replace(self, business_details=business_details)
 
 
 def first_submission(account_id: AccountId, business_details: BusinessDetails) -> SellerApplication:
     """The Seller Application a Seller submits for the first time, which makes it a Seller."""
-    return SellerApplication(
-        account_id, SellerId.new(), business_details, Status.PENDING, version=Version(1)
-    )
+    return SellerApplication(account_id, SellerId.new(), business_details, Status.PENDING)
 
 
 class NoSellerApplicationError(Exception):
@@ -95,8 +80,4 @@ class NoSellerApplicationError(Exception):
 
 
 class SellerApplicationSubmittedError(Exception):
-    """The Seller has submitted a Seller Application already, so it can only correct it."""
-
-
-class SellerApplicationChangedError(Exception):
-    """Another write changed the Seller Application since it was read."""
+    """Another submission from the same Seller created its Seller Application first."""
