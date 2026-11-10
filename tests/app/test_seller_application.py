@@ -28,12 +28,8 @@ def signed_in_new_seller(keycloak: str) -> dict[str, str]:
     return bearer(access_token(keycloak, seller))
 
 
-def first_submission(business_details: dict[str, str]) -> dict:
+def submission(business_details: dict[str, str]) -> dict:
     return {"business_details": business_details}
-
-
-def correction(business_details: dict[str, str], *, version: int) -> dict:
-    return {"business_details": business_details, "version": version}
 
 
 def test_a_seller_application_is_not_found_before_it_is_submitted(
@@ -45,94 +41,38 @@ def test_a_seller_application_is_not_found_before_it_is_submitted(
     assert response.json() == {"detail": "This Seller has submitted no Seller Application"}
 
 
-def test_the_first_submission_makes_a_pending_seller_application(
+def test_the_first_submission_creates_a_pending_seller_application(
     keycloak: str, api: TestClient
 ) -> None:
     seller = signed_in_new_seller(keycloak)
 
-    api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS))
+    response = api.put(SELLER_APPLICATION, headers=seller, json=submission(BUSINESS_DETAILS))
 
+    assert response.status_code == 201
     seller_application = api.get(SELLER_APPLICATION, headers=seller).json()
     assert UUID(seller_application["seller_id"])
     assert seller_application == {
         "seller_id": seller_application["seller_id"],
         "business_details": BUSINESS_DETAILS,
         "status": "pending",
-        "version": 1,
     }
 
 
-def test_correcting_a_pending_seller_application_keeps_it_pending_as_its_next_version(
+def test_submitting_again_replaces_the_business_details_and_keeps_it_pending(
     keycloak: str, api: TestClient
 ) -> None:
     seller = signed_in_new_seller(keycloak)
-    first = api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS))
+    first = api.put(SELLER_APPLICATION, headers=seller, json=submission(BUSINESS_DETAILS))
     corrected = BUSINESS_DETAILS | {"display_name": "Falcon Home"}
 
-    api.put(SELLER_APPLICATION, headers=seller, json=correction(corrected, version=1))
+    response = api.put(SELLER_APPLICATION, headers=seller, json=submission(corrected))
 
+    assert response.status_code == 200
     assert api.get(SELLER_APPLICATION, headers=seller).json() == {
         "seller_id": first.json()["seller_id"],
         "business_details": corrected,
         "status": "pending",
-        "version": 2,
     }
-
-
-def test_a_correction_with_the_same_details_changes_nothing(keycloak: str, api: TestClient) -> None:
-    seller = signed_in_new_seller(keycloak)
-    api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS))
-
-    api.put(SELLER_APPLICATION, headers=seller, json=correction(BUSINESS_DETAILS, version=1))
-
-    assert api.get(SELLER_APPLICATION, headers=seller).json()["version"] == 1
-
-
-def test_a_correction_at_a_stale_version_is_refused(keycloak: str, api: TestClient) -> None:
-    seller = signed_in_new_seller(keycloak)
-    api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS))
-    from_another_tab = BUSINESS_DETAILS | {"display_name": "Falcon Home"}
-    api.put(SELLER_APPLICATION, headers=seller, json=correction(from_another_tab, version=1))
-
-    response = api.put(
-        SELLER_APPLICATION, headers=seller, json=correction(BUSINESS_DETAILS, version=1)
-    )
-
-    assert response.status_code == 409
-    assert response.json() == {"detail": "The Seller Application has changed since that version"}
-    assert api.get(SELLER_APPLICATION, headers=seller).json()["business_details"] == (
-        from_another_tab
-    )
-
-
-def test_a_second_first_submission_is_refused(keycloak: str, api: TestClient) -> None:
-    seller = signed_in_new_seller(keycloak)
-    api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS))
-
-    response = api.put(
-        SELLER_APPLICATION,
-        headers=seller,
-        json=first_submission(BUSINESS_DETAILS | {"display_name": "Falcon Home"}),
-    )
-
-    assert response.status_code == 409
-    assert response.json() == {
-        "detail": "This Seller has submitted a Seller Application already: correct it at the "
-        "version it read"
-    }
-
-
-def test_correcting_a_seller_application_never_submitted_is_not_found(
-    keycloak: str, api: TestClient
-) -> None:
-    response = api.put(
-        SELLER_APPLICATION,
-        headers=signed_in_new_seller(keycloak),
-        json=correction(BUSINESS_DETAILS, version=1),
-    )
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "This Seller has submitted no Seller Application"}
 
 
 @pytest.mark.parametrize(
@@ -155,7 +95,7 @@ def test_an_invalid_business_detail_is_refused_naming_the_field(
     response = api.put(
         SELLER_APPLICATION,
         headers=signed_in_new_seller(keycloak),
-        json=first_submission(BUSINESS_DETAILS | {field: value}),
+        json=submission(BUSINESS_DETAILS | {field: value}),
     )
 
     assert response.status_code == 422
@@ -173,7 +113,7 @@ def test_names_and_the_trade_licence_number_are_kept_without_surrounding_spaces(
         "trade_licence_number": "CN-1234567  ",
     }
 
-    api.put(SELLER_APPLICATION, headers=seller, json=first_submission(BUSINESS_DETAILS | padded))
+    api.put(SELLER_APPLICATION, headers=seller, json=submission(BUSINESS_DETAILS | padded))
 
     assert api.get(SELLER_APPLICATION, headers=seller).json()["business_details"] == (
         BUSINESS_DETAILS
@@ -188,7 +128,7 @@ def test_only_a_seller_reaches_its_seller_application(
     token = access_token(keycloak, local_account(role))
 
     response = api.request(
-        method, SELLER_APPLICATION, headers=bearer(token), json=first_submission(BUSINESS_DETAILS)
+        method, SELLER_APPLICATION, headers=bearer(token), json=submission(BUSINESS_DETAILS)
     )
 
     assert response.status_code == 403

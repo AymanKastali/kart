@@ -4,10 +4,7 @@ adapter that implements it."""
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from kart.contexts.seller_onboarding.domain.seller_application import (
-        SellerApplication,
-        Version,
-    )
+    from kart.contexts.seller_onboarding.domain.seller_application import SellerApplication
     from kart.shared.kernel.ids import AccountId
 
 
@@ -22,9 +19,6 @@ class SellerApplicationRepository(Protocol):
         """Raises `SellerApplicationSubmittedError` if the Seller has one already."""
         ...
 
-    def replace(self, seller_application: SellerApplication, *, read_version: Version) -> None:
-        """Replace the Seller Application as it was read at `read_version`.
-
-        Raises `SellerApplicationChangedError` if another write has changed it since.
-        """
+    def replace(self, seller_application: SellerApplication) -> None:
+        """Replace the Seller's Seller Application with this one."""
         ...

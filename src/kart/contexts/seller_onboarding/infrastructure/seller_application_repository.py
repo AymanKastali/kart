@@ -2,18 +2,16 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, MetaData, String, Table, Uuid, select, update
+from sqlalchemy import Column, MetaData, String, Table, Uuid, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from kart.contexts.seller_onboarding.domain.seller_application import (
     BusinessDetails,
     Iban,
     SellerApplication,
-    SellerApplicationChangedError,
     SellerApplicationSubmittedError,
     Status,
     VatNumber,
-    Version,
 )
 from kart.shared.kernel.ids import AccountId, SellerId
 
@@ -32,7 +30,6 @@ _seller_applications = Table(
     Column("vat_number", String, nullable=False),
     Column("iban", String, nullable=False),
     Column("status", String, nullable=False),
-    Column("version", Integer, nullable=False),
 )
 
 
@@ -58,18 +55,12 @@ class PostgresSellerApplicationRepository:
         if added is None:
             raise SellerApplicationSubmittedError
 
-    def replace(self, seller_application: SellerApplication, *, read_version: Version) -> None:
-        replaced = self._session.scalar(
+    def replace(self, seller_application: SellerApplication) -> None:
+        self._session.execute(
             update(_seller_applications)
-            .where(
-                _seller_applications.c.account_id == seller_application.account_id,
-                _seller_applications.c.version == read_version,
-            )
+            .where(_seller_applications.c.account_id == seller_application.account_id)
             .values(_row(seller_application))
-            .returning(_seller_applications.c.account_id)
         )
-        if replaced is None:
-            raise SellerApplicationChangedError
 
 
 def _row(seller_application: SellerApplication) -> dict:
@@ -83,7 +74,6 @@ def _row(seller_application: SellerApplication) -> dict:
         "vat_number": business_details.vat_number,
         "iban": business_details.iban,
         "status": seller_application.status,
-        "version": seller_application.version,
     }
 
 
@@ -99,5 +89,4 @@ def _seller_application(row: Row) -> SellerApplication:
             iban=Iban(row.iban),
         ),
         status=Status(row.status),
-        version=Version(row.version),
     )
