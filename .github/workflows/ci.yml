@@ -19,14 +19,9 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - name: ruff
-        run: |
-          uv run ruff format --check .
-          uv run ruff check .
-      - name: ty
-        run: uv run ty check
-      - name: import-linter
-        run: uv run lint-imports
+      # Formatting, lint, types, context boundaries, dead code and duplication.
+      - name: static checks
+        run: scripts/static-checks.sh
       - name: pytest
         run: uv run pytest
 

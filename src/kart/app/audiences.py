@@ -32,16 +32,19 @@ def principal_for_audience(
         return None
     if credentials is None:
         raise _unauthenticated()
-    access_tokens: AccessTokens = request.app.state.access_tokens
+    principal = _verified_principal(request.app.state.access_tokens, credentials.credentials)
+    if principal.role != required_role:
+        raise HTTPException(status.HTTP_403_FORBIDDEN)
+    return principal
+
+
+def _verified_principal(access_tokens: AccessTokens, token: str) -> Principal:
     try:
-        principal = access_tokens.verify(credentials.credentials)
+        return access_tokens.verify(token)
     except InvalidAccessTokenError:
         raise _unauthenticated() from None
     except IdentityUnavailableError:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE) from None
-    if principal.role != required_role:
-        raise HTTPException(status.HTTP_403_FORBIDDEN)
-    return principal
 
 
 def _required_role(path: str) -> Role | None:

@@ -30,7 +30,7 @@ def ty_accepts(tmp_path: Path, source: str) -> bool:
 
 
 USES_AN_ORDER_ID = """
-    from kart.shared.kernel.ids import OfferId, OrderId
+    from kart.shared.kernel.ids import AccountId, OrderId
 
     def cancel(order_id: OrderId) -> None: ...
 
@@ -42,5 +42,5 @@ def test_an_order_id_is_accepted_where_an_order_id_is_expected(tmp_path: Path) -
     assert ty_accepts(tmp_path, USES_AN_ORDER_ID.format(argument="OrderId.new()"))
 
 
-def test_an_offer_id_is_rejected_where_an_order_id_is_expected(tmp_path: Path) -> None:
-    assert not ty_accepts(tmp_path, USES_AN_ORDER_ID.format(argument="OfferId.new()"))
+def test_an_account_id_is_rejected_where_an_order_id_is_expected(tmp_path: Path) -> None:
+    assert not ty_accepts(tmp_path, USES_AN_ORDER_ID.format(argument="AccountId.new()"))

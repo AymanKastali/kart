@@ -47,14 +47,17 @@ To change a value without editing `.env.example`, put it in a `.env` file at the
 
 The checks run on your machine through [uv](https://docs.astral.sh/uv/). Running the app doesn't need it. The tests in `tests/database/` and `tests/shared/` start a throwaway Postgres, RabbitMQ and Debezium Server in Docker through testcontainers, so Docker must be running. Run `uv sync` once: uv installs Python 3.14 if needed, creates `.venv` and installs `kart` from `src/` in editable mode.
 
-CI runs these on every pull request and on pushes to `main`:
+Code follows [`CODING_STANDARDS.md`](CODING_STANDARDS.md). The checks below enforce what a tool can, and review checks the rest. CI runs these on every pull request and on pushes to `main`:
 
 | Check | Command |
 |---|---|
 | Formatting | `uv run ruff format --check .` (fix with `uv run ruff format .`) |
-| Lint | `uv run ruff check .` |
+| Lint, including function size and complexity | `uv run ruff check .` |
 | Types | `uv run ty check` |
 | Context boundaries | `uv run lint-imports` |
+| Dead code | `uv run vulture` |
+| Duplication | `uv run pylint src tests` |
+| All of the above | `scripts/static-checks.sh`, which CI runs |
 | Tests | `uv run pytest` |
 | Deployment | `docker compose up --build --wait` on an empty database, then a check that every context was migrated, the exchanges were declared, Debezium is reading the replication slot and the api's traces reach Jaeger |
 

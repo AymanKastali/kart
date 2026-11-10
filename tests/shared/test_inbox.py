@@ -65,17 +65,23 @@ def consuming(
     url = rabbitmq_url(rabbitmq)
     set_up_rabbitmq(url, [subscription])
     stopped = threading.Event()
-    worker = threading.Thread(target=consume, args=(url, engine, [subscription], stopped))
+    worker = threading.Thread(
+        target=consume, args=(url, engine, [subscription]), kwargs={"stopped": stopped}
+    )
     worker.start()
     try:
         yield
     finally:
         stopped.set()
         worker.join()
-        connection = pika.BlockingConnection(pika.URLParameters(url))
-        connection.channel().queue_delete(subscription.queue)
-        connection.channel().queue_delete(subscription.dead_letter_queue)
-        connection.close()
+        delete_queues(url, subscription)
+
+
+def delete_queues(rabbitmq_url: str, subscription: Subscription) -> None:
+    connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
+    connection.channel().queue_delete(subscription.queue)
+    connection.channel().queue_delete(subscription.dead_letter_queue)
+    connection.close()
 
 
 def publish(channel: BlockingChannel, event: EventEnvelope) -> None:
@@ -158,29 +164,38 @@ def test_handling_an_event_continues_the_trace_that_published_it(
     assert traces_handled_in == [published_in]
 
 
+@contextmanager
+def json_log_lines(logger_name: str) -> Generator[list[dict]]:
+    """Every line the logger writes while inside, read back from JSON once it exits."""
+    log = io.StringIO()
+    handler = logging.StreamHandler(log)
+    handler.setFormatter(JsonLogFormatter())
+    logger = logging.getLogger(logger_name)
+    logger.addHandler(handler)
+    lines: list[dict] = []
+    try:
+        yield lines
+    finally:
+        logger.removeHandler(handler)
+        lines.extend(json.loads(line) for line in log.getvalue().splitlines())
+
+
 @pytest.mark.usefixtures("debezium", "spans")
 def test_a_failed_handlers_log_line_carries_the_trace_that_published_the_event(
     engine: Engine, rabbitmq: RabbitMqContainer
 ) -> None:
     subscription = Subscription(SUBSCRIBER, {"widget.dropped.v1": ScriptedHandler(failures=1)})
     event = an_event("widget.dropped.v1")
-    log = io.StringIO()
-    handler = logging.StreamHandler(log)
-    handler.setFormatter(JsonLogFormatter())
-    logging.getLogger("kart.app.worker").addHandler(handler)
 
-    try:
-        with consuming(rabbitmq, engine, subscription):
-            with (
-                trace.get_tracer(__name__).start_as_current_span("request") as request,
-                unit_of_work(engine, "throwaway") as session,
-            ):
-                write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
-            eventually(lambda: was_handled(engine, event), "Handling the retried event")
-    finally:
-        logging.getLogger("kart.app.worker").removeHandler(handler)
+    with json_log_lines("kart.app.worker") as logged, consuming(rabbitmq, engine, subscription):
+        with (
+            trace.get_tracer(__name__).start_as_current_span("request") as request,
+            unit_of_work(engine, "throwaway") as session,
+        ):
+            write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
+        eventually(lambda: was_handled(engine, event), "Handling the retried event")
 
-    [failure] = [json.loads(line) for line in log.getvalue().splitlines()]
+    [failure] = logged
     assert failure["trace_id"] == trace.format_trace_id(request.get_span_context().trace_id)
 
 

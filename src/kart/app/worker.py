@@ -37,6 +37,7 @@ def consume(
     rabbitmq_url: str,
     engine: Engine,
     subscriptions: Collection[Subscription],
+    *,
     stopped: threading.Event,
 ) -> None:
     """Hand each event on the subscriptions' queues to its handler, until `stopped` is set."""
@@ -87,20 +88,27 @@ def _handle(  # noqa: PLR0913, PLR0917 pika's four callback arguments, after two
         context=propagate.extract(event.trace_context),
         kind=SpanKind.CONSUMER,
     ):
-        try:
-            with unit_of_work(engine, subscription.context) as session:
-                if record_in_inbox(session, event.event_id):
-                    subscription.handlers[event.type](session, event)
-        except Exception:
-            _logger.exception(
-                "%s failed to handle %s from %s",
-                subscription.context,
-                event.type,
-                subscription.queue,
-            )
-            _retry_or_dead_letter(channel, delivery_tag, properties)
-        else:
+        if _handled_once(engine, subscription, event):
             channel.basic_ack(delivery_tag)
+        else:
+            _retry_or_dead_letter(channel, delivery_tag, properties)
+
+
+def _handled_once(engine: Engine, subscription: Subscription, event: EventEnvelope) -> bool:
+    """Whether the event is now handled, by this delivery or an earlier one. Logs a failure."""
+    try:
+        with unit_of_work(engine, subscription.context) as session:
+            if record_in_inbox(session, event.event_id):
+                subscription.handlers[event.type](session, event)
+    except Exception:
+        _logger.exception(
+            "%s failed to handle %s from %s",
+            subscription.context,
+            event.type,
+            subscription.queue,
+        )
+        return False
+    return True
 
 
 def _retry_or_dead_letter(
@@ -115,7 +123,7 @@ def _retry_or_dead_letter(
 def _consume_every_subscription(settings: Settings, stopped: threading.Event) -> None:
     engine = create_database_engine(settings.database_url)
     try:
-        consume(settings.rabbitmq_url, engine, SUBSCRIPTIONS, stopped)
+        consume(settings.rabbitmq_url, engine, SUBSCRIPTIONS, stopped=stopped)
     finally:
         engine.dispose()
 
