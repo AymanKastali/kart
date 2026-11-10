@@ -11,15 +11,17 @@ from fastapi.testclient import TestClient
 from kart.app.api import create_app
 from kart.app.audiences import principal_for_audience
 from kart.contexts.identity.contracts import Principal, Role
+from tests.app.environment import set_environment
 from tests.app.keycloak import (
-    ADMIN,
     KeycloakAdmin,
     access_token,
+    admin_token,
     bearer,
     expired_token,
     local_account,
+    token_for_an_account_with_two_roles,
+    token_for_an_account_without_a_role,
 )
-from tests.app.test_settings import ENVIRONMENT
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -33,17 +35,16 @@ throwaway_routes = APIRouter()
 def whoami(
     principal: Annotated[Principal | None, Depends(principal_for_audience)],
 ) -> dict[str, str]:
-    """What a route under an audience sees of the caller."""
+    """What a route under an audience sees of the Principal."""
     if principal is None:
         return {"role": "anonymous"}
     return {"account_id": str(principal.account_id), "role": principal.role}
 
 
 @contextmanager
-def running_api(identity_url: str, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient]:
-    """The real app, checking tokens with `identity_url`, plus the throwaway routes."""
-    for name, value in {**ENVIRONMENT, "KEYCLOAK_URL": identity_url}.items():
-        monkeypatch.setenv(name, value)
+def running_api(keycloak: str, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient]:
+    """The real app, checking tokens with the Keycloak at `keycloak`, plus the throwaway routes."""
+    set_environment(monkeypatch, KEYCLOAK_URL=keycloak)
     app = create_app()
     for audience in ("storefront", *Role):
         app.include_router(throwaway_routes, prefix=f"/v1/{audience}")
@@ -60,14 +61,12 @@ def api(keycloak: str, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient]
 @pytest.mark.parametrize("role", Role)
 def test_each_role_reaches_its_own_audience(keycloak: str, api: TestClient, role: Role) -> None:
     token = access_token(keycloak, local_account(role))
+    account_id = KeycloakAdmin(keycloak).account_id(role)
 
     response = api.get(f"/v1/{role}/whoami", headers=bearer(token))
 
     assert response.status_code == 200
-    assert response.json() == {
-        "account_id": KeycloakAdmin(keycloak).account_id(role),
-        "role": role,
-    }
+    assert response.json() == {"account_id": account_id, "role": role}
 
 
 @pytest.mark.parametrize(
@@ -114,20 +113,9 @@ def test_a_signed_in_audience_needs_a_token(api: TestClient, path: str) -> None:
     [
         pytest.param(lambda _: "not-a-token", id="garbage"),
         pytest.param(expired_token, id="expired"),
-        pytest.param(
-            lambda keycloak: access_token(keycloak, ADMIN, realm="master", client_id="admin-cli"),
-            id="another realm",
-        ),
-        pytest.param(
-            lambda keycloak: access_token(keycloak, KeycloakAdmin(keycloak).new_account([])),
-            id="no role",
-        ),
-        pytest.param(
-            lambda keycloak: access_token(
-                keycloak, KeycloakAdmin(keycloak).new_account(["customer", "seller"])
-            ),
-            id="two roles",
-        ),
+        pytest.param(admin_token, id="another realm"),
+        pytest.param(token_for_an_account_without_a_role, id="no role"),
+        pytest.param(token_for_an_account_with_two_roles, id="two roles"),
     ],
 )
 def test_an_invalid_token_is_refused(
@@ -141,7 +129,7 @@ def test_an_invalid_token_is_refused(
 def test_a_token_cant_be_checked_while_keycloak_is_unreachable(
     keycloak: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    token = access_token(keycloak, local_account("customer"))
+    token = access_token(keycloak, local_account(Role.CUSTOMER))
 
     # Nothing listens on port 1.
     with running_api("http://127.0.0.1:1", monkeypatch) as api:

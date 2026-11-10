@@ -8,10 +8,13 @@ from kart.shared.kernel.ids import OrderId
 TY = Path(sys.executable).with_name("ty")
 
 
-def test_new_ids_are_uuid7_and_time_ordered() -> None:
+def test_a_new_id_is_a_uuid7() -> None:
+    assert OrderId.new().version == 7
+
+
+def test_an_id_made_later_sorts_later() -> None:
     first, second = OrderId.new(), OrderId.new()
 
-    assert first.version == 7
     assert first < second
 
 

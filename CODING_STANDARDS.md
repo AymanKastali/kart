@@ -34,7 +34,7 @@ library or framework shapes, never for code that is merely long.
 - A name says what a thing is or does, in the words of [`GLOSSARY.md`](GLOSSARY.md): `Seller
   Application`, not `vendor_request`. Someone who doesn't know the library reads it correctly:
   `delivery_tag`, not `dt`; `apply_realm_settings`, not `sync`.
-- Functions are verbs or questions (`apply_realm_settings`, `_handled_once`), values are nouns
+- Functions are verbs or questions (`apply_realm_settings`, `_retry_or_dead_letter`), values are nouns
   (`principal`, `smtp_server`). A boolean reads as a statement: `stopped`, `starttls`.
 - One word per concept across the codebase. If it's an Account in one place it's never a user in
   another.

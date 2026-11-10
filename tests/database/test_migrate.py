@@ -48,7 +48,8 @@ def test_migrate_gives_every_context_its_own_schema_and_version_table(
 
     versions = _version_tables(empty_database_url)
     assert list(versions) == CONTEXTS
-    assert all(revisions == ["0001"] for revisions in versions.values())
+    # A version table records only the revision its context is at.
+    assert all(len(revisions) == 1 for revisions in versions.values())
 
 
 def test_migrating_again_changes_nothing(empty_database_url: str) -> None:

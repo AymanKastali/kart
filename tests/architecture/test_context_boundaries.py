@@ -18,6 +18,10 @@ KART_SRC = REPO_ROOT / "src"
 LINT_IMPORTS = Path(sys.executable).with_name("lint-imports")
 # What the shared kernel and the Core domains must not import.
 FRAMEWORKS = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
+CORE_CONTEXTS = ["ordering", "fulfilment", "offer"]
+# A context's adapters may use the shared plumbing; the layers inside them may not.
+ADAPTER_LAYERS = ["infrastructure", "migrations"]
+INNER_LAYERS = ["domain", "application", "api", "contracts"]
 
 
 def contracts_kept(tmp_path: Path, imports: dict[str, str]) -> bool:
@@ -71,14 +75,14 @@ def test_a_context_cannot_import_the_app(tmp_path: Path) -> None:
     assert not contracts_kept(tmp_path, {"kart.contexts.offer": "import kart.app"})
 
 
-@pytest.mark.parametrize("layer", ["domain", "application", "api", "contracts"])
+@pytest.mark.parametrize("layer", INNER_LAYERS)
 def test_any_part_of_a_context_may_import_the_shared_kernel(tmp_path: Path, layer: str) -> None:
     assert contracts_kept(
         tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.kernel.money"}
     )
 
 
-@pytest.mark.parametrize("context", ["ordering", "fulfilment", "offer"])
+@pytest.mark.parametrize("context", CORE_CONTEXTS)
 @pytest.mark.parametrize("framework", FRAMEWORKS)
 def test_a_core_domain_imports_no_framework(tmp_path: Path, context: str, framework: str) -> None:
     assert not contracts_kept(tmp_path, {f"kart.contexts.{context}.domain": f"import {framework}"})
@@ -99,14 +103,14 @@ def test_the_shared_kernel_cannot_import_a_context(tmp_path: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("layer", ["infrastructure", "migrations"])
+@pytest.mark.parametrize("layer", ADAPTER_LAYERS)
 def test_a_contexts_adapters_may_use_the_shared_plumbing(tmp_path: Path, layer: str) -> None:
     assert contracts_kept(
         tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.outbox"}
     )
 
 
-@pytest.mark.parametrize("layer", ["domain", "application", "api", "contracts"])
+@pytest.mark.parametrize("layer", INNER_LAYERS)
 def test_the_rest_of_a_context_cannot_use_the_shared_plumbing(tmp_path: Path, layer: str) -> None:
     assert not contracts_kept(
         tmp_path, {f"kart.contexts.ordering.{layer}": "import kart.shared.outbox"}

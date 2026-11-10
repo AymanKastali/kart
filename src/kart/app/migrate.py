@@ -8,6 +8,7 @@ again is a no-op, so Compose runs it on every `up`.
 
 import pkgutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from alembic import command
 from alembic.config import Config
@@ -16,6 +17,9 @@ from sqlalchemy import text
 import kart.contexts
 from kart.app.database import create_database_engine
 from kart.app.settings import Settings
+
+if TYPE_CHECKING:
+    from sqlalchemy import Connection
 
 _ENVIRONMENT = Path(__file__).with_name("migrations")
 _CONTEXTS = Path(kart.contexts.__file__).parent
@@ -33,16 +37,21 @@ def contexts(directory: Path = _CONTEXTS) -> list[str]:
 
 def migrate(database_url: str, directory: Path = _CONTEXTS) -> None:
     """Migrate each context package in `directory`: Kart's own, unless a test brings its own."""
-    for context in contexts(directory):
-        config = Config()
-        config.set_main_option("script_location", str(_ENVIRONMENT))
-        config.set_main_option("path_separator", "os")
-        config.set_main_option("version_locations", str(directory / context / "migrations"))
-        # Passed as attributes, not options: options interpolate `%`, which escaped URLs use.
-        config.attributes["database_url"] = database_url
-        config.attributes["context"] = context
-        command.upgrade(config, "head")
-    _prepare_change_data_capture(database_url, contexts(directory))
+    every_context = contexts(directory)
+    for context in every_context:
+        command.upgrade(_alembic_config(database_url, directory, context), "head")
+    _prepare_change_data_capture(database_url, every_context)
+
+
+def _alembic_config(database_url: str, directory: Path, context: str) -> Config:
+    config = Config()
+    config.set_main_option("script_location", str(_ENVIRONMENT))
+    config.set_main_option("path_separator", "os")
+    config.set_main_option("version_locations", str(directory / context / "migrations"))
+    # Passed as attributes, not options: options interpolate `%`, which escaped URLs use.
+    config.attributes["database_url"] = database_url
+    config.attributes["context"] = context
+    return config
 
 
 def _prepare_change_data_capture(database_url: str, schemas: list[str]) -> None:
@@ -54,35 +63,47 @@ def _prepare_change_data_capture(database_url: str, schemas: list[str]) -> None:
     """
     engine = create_database_engine(database_url)
     with engine.begin() as connection:
-        if not connection.scalar(
-            text("SELECT EXISTS (SELECT FROM pg_publication WHERE pubname = :name)"),
-            {"name": _PUBLICATION},
-        ):
-            connection.execute(text(f"CREATE PUBLICATION {_PUBLICATION}"))
-        unpublished = connection.scalars(
-            text(
-                "SELECT format('%I.%I', table_schema, table_name)"
-                " FROM information_schema.tables"
-                " WHERE table_name = 'outbox' AND table_schema = ANY(:schemas)"
-                " AND (table_schema, table_name) NOT IN"
-                " (SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = :name)"
-            ),
-            {"schemas": schemas, "name": _PUBLICATION},
-        ).all()
-        for table in unpublished:
-            connection.execute(text(f"ALTER PUBLICATION {_PUBLICATION} ADD TABLE {table}"))
+        _ensure_publication(connection)
+        _publish_every_outbox(connection, schemas)
     # Its own transaction: Postgres refuses to create a slot in one that has written.
     with engine.begin() as connection:
-        slot = _SLOT_TEMPLATE.format(database=connection.scalar(text("SELECT current_database()")))
-        if not connection.scalar(
-            text("SELECT EXISTS (SELECT FROM pg_replication_slots WHERE slot_name = :name)"),
-            {"name": slot},
-        ):
-            connection.execute(
-                text("SELECT pg_create_logical_replication_slot(:name, 'pgoutput')"),
-                {"name": slot},
-            )
+        _ensure_replication_slot(connection)
     engine.dispose()
+
+
+def _ensure_publication(connection: Connection) -> None:
+    if not connection.scalar(
+        text("SELECT EXISTS (SELECT FROM pg_publication WHERE pubname = :name)"),
+        {"name": _PUBLICATION},
+    ):
+        connection.execute(text(f"CREATE PUBLICATION {_PUBLICATION}"))
+
+
+def _publish_every_outbox(connection: Connection, schemas: list[str]) -> None:
+    unpublished = connection.scalars(
+        text(
+            "SELECT format('%I.%I', table_schema, table_name)"
+            " FROM information_schema.tables"
+            " WHERE table_name = 'outbox' AND table_schema = ANY(:schemas)"
+            " AND (table_schema, table_name) NOT IN"
+            " (SELECT schemaname, tablename FROM pg_publication_tables WHERE pubname = :name)"
+        ),
+        {"schemas": schemas, "name": _PUBLICATION},
+    ).all()
+    for table in unpublished:
+        connection.execute(text(f"ALTER PUBLICATION {_PUBLICATION} ADD TABLE {table}"))
+
+
+def _ensure_replication_slot(connection: Connection) -> None:
+    slot = _SLOT_TEMPLATE.format(database=connection.scalar(text("SELECT current_database()")))
+    if not connection.scalar(
+        text("SELECT EXISTS (SELECT FROM pg_replication_slots WHERE slot_name = :name)"),
+        {"name": slot},
+    ):
+        connection.execute(
+            text("SELECT pg_create_logical_replication_slot(:name, 'pgoutput')"),
+            {"name": slot},
+        )
 
 
 if __name__ == "__main__":

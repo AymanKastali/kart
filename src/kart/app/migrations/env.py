@@ -7,14 +7,12 @@ create belongs to the context.
 """
 
 from alembic import context as alembic
-from sqlalchemy import text
+from sqlalchemy import Connection, text
 
 from kart.app.database import create_database_engine, enter_context
 
-bounded_context = alembic.config.attributes["context"]
-engine = create_database_engine(alembic.config.attributes["database_url"])
 
-with engine.begin() as connection:
+def _ensure_role_and_schema(connection: Connection, bounded_context: str) -> None:
     identifier = connection.dialect.identifier_preparer.quote(bounded_context)
     role_exists = connection.scalar(
         text("SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = :name)"),
@@ -23,6 +21,13 @@ with engine.begin() as connection:
     if not role_exists:
         connection.execute(text(f"CREATE ROLE {identifier} NOLOGIN"))
     connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {identifier} AUTHORIZATION {identifier}"))
+
+
+bounded_context = alembic.config.attributes["context"]
+engine = create_database_engine(alembic.config.attributes["database_url"])
+
+with engine.begin() as connection:
+    _ensure_role_and_schema(connection, bounded_context)
     enter_context(connection, bounded_context)
     alembic.configure(connection=connection, version_table_schema=bounded_context)
     with alembic.begin_transaction():

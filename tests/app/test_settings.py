@@ -3,31 +3,12 @@ from pydantic import ValidationError
 
 from kart.app.settings import Settings
 from kart.contexts.identity.realm import KeycloakAdminLogin, SmtpLogin, SmtpServer
-
-# The same variables `.env` holds; the image-specific names are the ones Postgres, RabbitMQ
-# and Keycloak read too.
-ENVIRONMENT = {
-    "POSTGRES_HOST": "postgres",
-    "POSTGRES_USER": "kart",
-    "POSTGRES_PASSWORD": "p@ss/word",
-    "POSTGRES_DB": "kart",
-    "RABBITMQ_HOST": "rabbitmq",
-    "RABBITMQ_DEFAULT_USER": "kart",
-    "RABBITMQ_DEFAULT_PASS": "secret",
-    "KEYCLOAK_URL": "http://keycloak:8080",
-    "KC_BOOTSTRAP_ADMIN_USERNAME": "admin",
-    "KC_BOOTSTRAP_ADMIN_PASSWORD": "secret",
-    "SMTP_HOST": "mailpit",
-    "SMTP_PORT": "1025",
-    "SMTP_FROM": "no-reply@kart.local",
-    "SMTP_STARTTLS": "false",
-}
+from tests.app.environment import ENVIRONMENT, set_environment
 
 
 @pytest.fixture
 def environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name, value in ENVIRONMENT.items():
-        monkeypatch.setenv(name, value)
+    set_environment(monkeypatch)
 
 
 @pytest.mark.usefixtures("environment")

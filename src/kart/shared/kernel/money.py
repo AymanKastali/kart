@@ -20,8 +20,12 @@ class Money:
     def __mul__(self, quantity: int) -> Money:
         return Money(self.fils * quantity)
 
-    def vat_included(self) -> Money:
+    def included_vat(self) -> Money:
         """The VAT inside this VAT-inclusive amount: amount x 5/105, rounded half-up to the fil."""
-        numerator = self.fils * VAT_RATE_PERCENT
-        denominator = 100 + VAT_RATE_PERCENT
-        return Money((2 * numerator + denominator) // (2 * denominator))
+        return Money(
+            _divided_rounding_half_up(self.fils * VAT_RATE_PERCENT, 100 + VAT_RATE_PERCENT)
+        )
+
+
+def _divided_rounding_half_up(numerator: int, denominator: int) -> int:
+    return (2 * numerator + denominator) // (2 * denominator)

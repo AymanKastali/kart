@@ -88,27 +88,25 @@ def _handle(  # noqa: PLR0913, PLR0917 pika's four callback arguments, after two
         context=propagate.extract(event.trace_context),
         kind=SpanKind.CONSUMER,
     ):
-        if _handled_once(engine, subscription, event):
-            channel.basic_ack(delivery_tag)
-        else:
+        try:
+            _handle_once(engine, subscription, event)
+        except Exception:
+            _logger.exception(
+                "%s failed to handle %s from %s",
+                subscription.context,
+                event.type,
+                subscription.queue,
+            )
             _retry_or_dead_letter(channel, delivery_tag, properties)
+        else:
+            channel.basic_ack(delivery_tag)
 
 
-def _handled_once(engine: Engine, subscription: Subscription, event: EventEnvelope) -> bool:
-    """Whether the event is now handled, by this delivery or an earlier one. Logs a failure."""
-    try:
-        with unit_of_work(engine, subscription.context) as session:
-            if record_in_inbox(session, event.event_id):
-                subscription.handlers[event.type](session, event)
-    except Exception:
-        _logger.exception(
-            "%s failed to handle %s from %s",
-            subscription.context,
-            event.type,
-            subscription.queue,
-        )
-        return False
-    return True
+def _handle_once(engine: Engine, subscription: Subscription, event: EventEnvelope) -> None:
+    """Hand the event to its handler, unless the inbox shows an earlier delivery was handled."""
+    with unit_of_work(engine, subscription.context) as session:
+        if record_in_inbox(session, event.event_id):
+            subscription.handlers[event.type](session, event)
 
 
 def _retry_or_dead_letter(

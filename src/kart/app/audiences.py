@@ -23,7 +23,7 @@ def principal_for_audience(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_token)],
 ) -> Principal | None:
-    """The caller, if the route's audience needs one; None on an open route.
+    """The Principal, if the route's audience needs one; None on an open route.
 
     Refuses a missing or invalid token with 401, and the wrong role with 403.
     """

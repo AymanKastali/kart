@@ -9,6 +9,7 @@ from kart.contexts.identity.realm import SmtpServer
 
 # Where the test Mailpit takes email, as Compose's does.
 SMTP_SERVER = SmtpServer("mailpit", 1025, "no-reply@kart.local", starttls=False)
+MAILPIT_API_PORT = 8025
 
 # How long an email may take to arrive: some are sent after the request that caused them.
 _ARRIVAL_TIMEOUT_SECONDS = 10
