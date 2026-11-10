@@ -144,8 +144,8 @@ max-returns = 4
 [tool.vulture]
 paths = ["src", "tests"]
 min_confidence = 60
-# Pytest and FastAPI call what they decorate.
-ignore_decorators = ["@pytest.fixture", "@*.get"]
+# Pytest, FastAPI and Pydantic call what they decorate.
+ignore_decorators = ["@pytest.fixture", "@*.get", "@model_validator"]
 ignore_names = [
     "pytestmark",
     # Alembic reads these from every migration.
