@@ -9,7 +9,7 @@
     "repository": {
       "url": "https://github.com/AymanKastali/kart",
       "provider": "github",
-      "revision": "8e44033f0c02897d59bdc84ae2bd103fa99f2f4e"
+      "revision": "f258b5626ba98a41d600f294345aef000cd74664"
     },
     "legend": {
       "entries": {
@@ -62,9 +62,9 @@
       "sublabel": "kart realm",
       "sources": [
         {
-          "path": "src/kart/contexts/identity/contracts.py",
-          "line": 39,
-          "end_line": 66,
+          "path": "src/kart/contexts/identity/infrastructure/keycloak_access_tokens.py",
+          "line": 31,
+          "end_line": 48,
           "label": "AccessTokens.verify"
         }
       ]
