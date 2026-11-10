@@ -11,6 +11,7 @@ from kart.contexts.identity.contracts import (
     InvalidAccessTokenError,
     Principal,
     Role,
+    keep_signed_in_principal,
 )
 
 # Anything outside these prefixes, such as /v1/storefront, is open to anyone.
@@ -19,23 +20,24 @@ _SIGNED_IN_PREFIXES = {f"/v1/{role}": role for role in Role}
 _bearer_token = HTTPBearer(auto_error=False)
 
 
-def principal_for_audience(
+def admit_only_the_audience(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_token)],
-) -> Principal | None:
-    """The Principal, if the route's audience needs one; None on an open route.
+) -> None:
+    """Let a request to a signed-in audience through only with a token for that audience's role,
+    and keep the token's Principal for the route. Open routes let every request through.
 
     Refuses a missing or invalid token with 401, and the wrong role with 403.
     """
     required_role = _required_role(request.url.path)
     if required_role is None:
-        return None
+        return
     if credentials is None:
         raise _unauthenticated()
     principal = _verified_principal(request.app.state.access_tokens, credentials.credentials)
     if principal.role != required_role:
         raise HTTPException(status.HTTP_403_FORBIDDEN)
-    return principal
+    keep_signed_in_principal(request, principal)
 
 
 def _verified_principal(access_tokens: AccessTokens, token: str) -> Principal:

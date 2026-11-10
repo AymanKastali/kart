@@ -7,13 +7,15 @@ from typing import TYPE_CHECKING, Any
 import uvicorn
 from fastapi import Depends, FastAPI
 
-from kart.app.audiences import principal_for_audience
+from kart.app.audiences import admit_only_the_audience
 from kart.app.database import create_database_engine, unit_of_work
 from kart.app.observability import set_up_observability
 from kart.app.settings import Settings
 from kart.contexts.identity import routes as identity_routes
 from kart.contexts.identity.contracts import AccessTokens
 from kart.contexts.identity.seller_sign_up import SellerSignUp
+from kart.contexts.seller_onboarding import routes as seller_onboarding_routes
+from kart.contexts.seller_onboarding.seller_applications import SellerApplications
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, MutableMapping
@@ -31,6 +33,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.seller_sign_up = SellerSignUp(
         settings.keycloak_admin, partial(unit_of_work, engine, "identity")
     )
+    app.state.seller_applications = SellerApplications(
+        partial(unit_of_work, engine, "seller_onboarding")
+    )
     yield
     engine.dispose()
 
@@ -40,12 +45,13 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Kart",
         lifespan=lifespan,
-        dependencies=[Depends(principal_for_audience)],
+        dependencies=[Depends(admit_only_the_audience)],
         # FastAPI traces each request itself.
         telemetry={"exclude": _is_health_check},
     )
     app.get(_HEALTH_PATH)(health)
     app.include_router(identity_routes.router)
+    app.include_router(seller_onboarding_routes.router)
     return app
 
 

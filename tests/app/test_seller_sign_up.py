@@ -6,54 +6,23 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import make_url
 
-from kart.app.api import create_app
-from kart.app.migrate import migrate
 from kart.contexts.identity.contracts import AccessTokens, Principal, Role
 from kart.shared.kernel.ids import AccountId
-from tests.app.environment import set_environment
-from tests.app.keycloak import ADMIN, Credentials, KeycloakAdmin, access_token, email_address
+from tests.app.keycloak import Credentials, KeycloakAdmin, access_token, email_address
 from tests.app.keycloak_sign_in import verify_email
-from tests.conftest import new_database
 from tests.outbox_events import watching_outbox
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from testcontainers.community.postgres import PostgresContainer
+    from fastapi.testclient import TestClient
 
     from tests.mailpit import Mailpit
     from tests.outbox_events import OutboxEvents
 
 SIGN_UP = "/v1/storefront/seller-accounts"
 PASSWORD = "a-good-password"  # noqa: S105 a throwaway Account's
-
-
-@pytest.fixture(scope="module")
-def database_url(postgres: PostgresContainer) -> str:
-    url = new_database(postgres)
-    migrate(url)
-    return url
-
-
-@pytest.fixture
-def api(keycloak: str, database_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    url = make_url(database_url)
-    set_environment(
-        monkeypatch,
-        KEYCLOAK_URL=keycloak,
-        KC_BOOTSTRAP_ADMIN_USERNAME=ADMIN.username,
-        KC_BOOTSTRAP_ADMIN_PASSWORD=ADMIN.password,
-        POSTGRES_HOST=str(url.host),
-        POSTGRES_PORT=str(url.port),
-        POSTGRES_USER=str(url.username),
-        POSTGRES_PASSWORD=str(url.password),
-        POSTGRES_DB=str(url.database),
-    )
-    with TestClient(create_app()) as client:
-        yield client
 
 
 @pytest.fixture

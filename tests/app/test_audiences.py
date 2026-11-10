@@ -9,8 +9,7 @@ from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from kart.app.api import create_app
-from kart.app.audiences import principal_for_audience
-from kart.contexts.identity.contracts import Principal, Role
+from kart.contexts.identity.contracts import Principal, Role, signed_in_principal
 from tests.app.environment import set_environment
 from tests.app.keycloak import (
     KeycloakAdmin,
@@ -26,28 +25,32 @@ from tests.app.keycloak import (
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-# Mounted under every audience prefix, standing in for the routes contexts will add.
-throwaway_routes = APIRouter()
+# Mounted under each signed-in audience's prefix, standing in for the routes contexts add.
+signed_in_routes = APIRouter()
+# Mounted under the storefront's.
+open_routes = APIRouter()
 
 
-@throwaway_routes.get("")
-@throwaway_routes.get("/whoami")
-def whoami(
-    principal: Annotated[Principal | None, Depends(principal_for_audience)],
-) -> dict[str, str]:
-    """What a route under an audience sees of the Principal."""
-    if principal is None:
-        return {"role": "anonymous"}
+@signed_in_routes.get("")
+@signed_in_routes.get("/whoami")
+def whoami(principal: Annotated[Principal, Depends(signed_in_principal)]) -> dict[str, str]:
+    """What a route under a signed-in audience sees of the Principal."""
     return {"account_id": str(principal.account_id), "role": principal.role}
+
+
+@open_routes.get("/anything")
+def anything() -> dict[str, str]:
+    return {}
 
 
 @contextmanager
 def running_api(keycloak: str, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient]:
-    """The real app, checking tokens with the Keycloak at `keycloak`, plus the throwaway routes."""
+    """The real app, checking tokens with the Keycloak at `keycloak`, plus stand-in routes."""
     set_environment(monkeypatch, KEYCLOAK_URL=keycloak)
     app = create_app()
-    for audience in ("storefront", *Role):
-        app.include_router(throwaway_routes, prefix=f"/v1/{audience}")
+    for role in Role:
+        app.include_router(signed_in_routes, prefix=f"/v1/{role}")
+    app.include_router(open_routes, prefix="/v1/storefront")
     with TestClient(app) as client:
         yield client
 
@@ -87,16 +90,15 @@ def test_a_role_is_forbidden_other_audiences(
 def test_the_storefront_is_open_to_every_role(keycloak: str, api: TestClient, role: Role) -> None:
     token = access_token(keycloak, local_account(role))
 
-    response = api.get("/v1/storefront/whoami", headers=bearer(token))
+    response = api.get("/v1/storefront/anything", headers=bearer(token))
 
     assert response.status_code == 200
 
 
 def test_the_storefront_is_open_without_a_token(api: TestClient) -> None:
-    response = api.get("/v1/storefront/whoami")
+    response = api.get("/v1/storefront/anything")
 
     assert response.status_code == 200
-    assert response.json() == {"role": "anonymous"}
 
 
 @pytest.mark.parametrize(
