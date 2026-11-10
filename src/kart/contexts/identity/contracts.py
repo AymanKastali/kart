@@ -7,9 +7,9 @@ from typing import Any
 
 import jwt
 
+from kart.contexts.identity.realm import REALM
 from kart.shared.kernel.ids import AccountId
 
-_REALM = "kart"
 # The client a token must be issued for, so a token meant for another client is refused.
 _API_CLIENT_ID = "kart-api"
 
@@ -41,7 +41,7 @@ class AccessTokens:
         # Caches the realm's public keys, and fetches them again when a token names a key it
         # hasn't seen, so the keys can be rotated.
         self._signing_keys = jwt.PyJWKClient(
-            f"{identity_url}/realms/{_REALM}/protocol/openid-connect/certs"
+            f"{identity_url}/realms/{REALM}/protocol/openid-connect/certs"
         )
 
     def verify(self, token: str) -> Principal:

@@ -19,7 +19,7 @@ src/kart/
   shared/                       technical plumbing contexts' adapters build on: the outbox and the inbox
     kernel/                     the shared kernel: Money, typed ids, event envelope
   contexts/                     one package per bounded context
-    identity/                   Keycloak integration, token verification
+    identity/                   Keycloak integration, token verification, the realm's settings
     seller_onboarding/
     catalog/
     offer/
@@ -30,12 +30,12 @@ src/kart/
     seller_settlement/
     notification/
     <context>/migrations/       each context's Alembic history
-  app/                          process entrypoints (api, worker, scheduler, migrate, rabbitmq_setup), settings, the shared engine and unit of work, and the Alembic environment every history runs in
+  app/                          process entrypoints (api, worker, scheduler, migrate, rabbitmq_setup, keycloak_setup), settings, the shared engine and unit of work, and the Alembic environment every history runs in
 tests/                          architecture tests for the context boundaries, shared kernel and app tests, database tests against a real Postgres, the outbox and inbox end to end against Postgres, Debezium Server and RabbitMQ, and more to come
 .env.example                    the local configuration, read by Compose as it is
 compose.yaml                    the whole deployment (ADR-0007)
 debezium/                       Debezium Server's config
-keycloak/                       the kart realm Keycloak imports
+keycloak/                       the kart realm Keycloak imports when it doesn't exist yet
 ```
 
 Kart is one package. The bounded contexts are kept apart by import-linter, not by packaging, so there is no uv workspace.
@@ -98,6 +98,8 @@ One versioned REST/JSON API with OpenAPI docs, organised by audience. Each route
 | `/v1/webhooks/payments` | Stripe | Payment (signature-verified) |
 
 Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). One app-wide dependency in `kart.app` checks every request against its path: `/v1/customer`, `/v1/seller` and `/v1/operator` need a token for that role, and anything else, such as `/v1/storefront`, is open. It refuses a missing or invalid token with 401, the wrong role with 403, and answers 503 while Keycloak's signing keys can't be fetched. Identity's `contracts` verify the JWT: the signature against the realm's cached keys, the expiry, and that it was issued for the `kart-api` client. A token must carry exactly one of Kart's roles. Inside the app, contexts see only a `Principal`: an Account id and a role. Only Identity imports the JWT library; the rest of the app only passes it Keycloak's URL.
+
+Keycloak imports the realm only when it doesn't exist yet, so the one-shot `keycloak-setup` service applies the realm's settings that Identity owns through the admin API on every `compose up`, before the app processes start: the SMTP server Keycloak sends its email through, email verification, password reset and the password policy. Applying them again changes nothing.
 
 ## Key flows
 

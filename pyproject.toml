@@ -8,6 +8,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1,<2",
     "fastapi>=0.162.2,<0.163",
+    "httpx>=0.28.1,<0.29",
     "opentelemetry-api>=1.45.2,<2",
     "opentelemetry-exporter-otlp-proto-http>=1.45.2,<2",
     "opentelemetry-instrumentation-sqlalchemy>=0.66b2,<0.67",
@@ -28,7 +29,6 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1,<0.29",
     "import-linter>=2.16,<3",
     "pytest>=9.2.0,<10",
     "ruff>=0.17.4,<0.18",

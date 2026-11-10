@@ -1,13 +1,17 @@
 """Tokens and accounts from a test Keycloak, through its token endpoint and admin API."""
 
+import html
+import re
 import time
 from dataclasses import dataclass
 from uuid import uuid4
 
 import httpx
 
-# The deployment's realm and the client the API accepts tokens for.
-REALM = "kart"
+from kart.contexts.identity.realm import REALM, KeycloakAdminLogin, apply_realm_settings
+from tests.mailpit import SMTP_SERVER
+
+# The client the API accepts tokens for.
 API_CLIENT_ID = "kart-api"
 
 
@@ -41,6 +45,57 @@ def access_token(
     return response.json()["access_token"]
 
 
+def set_up_realm(keycloak: str) -> None:
+    """Apply the kart realm's settings as Compose's setup does, sending email to Mailpit."""
+    admin = KeycloakAdminLogin(keycloak, ADMIN.username, ADMIN.password)
+    apply_realm_settings(admin, SMTP_SERVER)
+
+
+def request_password_reset(keycloak: str, username: str) -> None:
+    """Ask for a reset link as a person does: through "Forgot password?" on the sign-in page."""
+    with httpx.Client(follow_redirects=True) as browser:
+        sign_in_page = browser.get(
+            f"{keycloak}/realms/{REALM}/protocol/openid-connect/auth",
+            params={
+                # The realm's own account console: a client whose sign-in page is hosted.
+                "client_id": "account-console",
+                "redirect_uri": f"{keycloak}/realms/{REALM}/account/",
+                "response_type": "code",
+                "code_challenge": "a" * 43,
+                "code_challenge_method": "S256",
+            },
+        )
+        sign_in_page.raise_for_status()
+        # Keycloak marks its session cookies Secure, which a browser sends to localhost over
+        # plain http but httpx doesn't, so they are passed on by hand.
+        session = {"Cookie": "; ".join(f"{n}={v}" for n, v in sign_in_page.cookies.items())}
+        reset_page = browser.get(
+            sign_in_page.url.join(_reset_link(sign_in_page.text)), headers=session
+        )
+        reset_page.raise_for_status()
+        browser.post(
+            reset_page.url.join(_form_action(reset_page.text)),
+            data={"username": username},
+            headers=session,
+        ).raise_for_status()
+
+
+def _reset_link(page: str) -> str:
+    match = re.search(r'href="([^"]*/login-actions/reset-credentials[^"]*)"', page)
+    if match is None:
+        msg = "the sign-in page offers no password reset"
+        raise AssertionError(msg)
+    return html.unescape(match[1])
+
+
+def _form_action(page: str) -> str:
+    match = re.search(r'<form[^>]*action="([^"]*)"', page)
+    if match is None:
+        msg = "the page has no form"
+        raise AssertionError(msg)
+    return html.unescape(match[1])
+
+
 def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
@@ -52,6 +107,12 @@ class KeycloakAdmin:
         self._realm_url = f"{keycloak}/admin/realms/{REALM}"
         admin_token = access_token(keycloak, ADMIN, realm="master", client_id="admin-cli")
         self._client = httpx.Client(headers=bearer(admin_token))
+
+    def realm(self) -> dict:
+        """The realm's settings, as the admin API represents them."""
+        response = self._client.get(self._realm_url)
+        response.raise_for_status()
+        return response.json()
 
     def account_id(self, username: str) -> str:
         users = self._get(f"/users?username={username}&exact=true")

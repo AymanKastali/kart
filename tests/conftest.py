@@ -11,7 +11,11 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from sqlalchemy import create_engine, make_url, text
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.core.container import DockerContainer
 from testcontainers.core.network import Network
+from testcontainers.core.wait_strategies import HttpWaitStrategy
+
+from tests.mailpit import Mailpit
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -48,6 +52,22 @@ def network() -> Iterator[Network]:
     """A Docker network, so containers such as Debezium can reach Postgres by name."""
     with Network() as network:
         yield network
+
+
+@pytest.fixture(scope="session")
+def mailpit(network: Network) -> Iterator[Mailpit]:
+    """A Mailpit, as in Compose, catching the email sent to its SMTP port at `mailpit:1025`."""
+    container = (
+        DockerContainer("axllent/mailpit:v1.33")
+        .with_network(network)
+        .with_network_aliases("mailpit")
+        .with_exposed_ports(8025)
+        .waiting_for(HttpWaitStrategy(8025, "/readyz"))
+    )
+    with container:
+        yield Mailpit(
+            f"http://{container.get_container_host_ip()}:{container.get_exposed_port(8025)}"
+        )
 
 
 @pytest.fixture(scope="session")
