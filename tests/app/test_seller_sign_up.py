@@ -7,7 +7,8 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 
-from kart.contexts.identity.contracts import AccessTokens, Principal, Role
+from kart.contexts.identity.contracts import Principal, Role
+from kart.contexts.identity.infrastructure.keycloak_access_tokens import KeycloakAccessTokens
 from kart.shared.kernel.ids import AccountId
 from tests.app.keycloak import Credentials, KeycloakAdmin, access_token, email_address
 from tests.app.keycloak_sign_in import verify_email
@@ -68,7 +69,7 @@ def test_a_verified_seller_signs_in_as_a_seller(
 
     token = access_token(keycloak, Credentials(email, PASSWORD))
     account_id = AccountId(response.json()["account_id"])
-    assert AccessTokens(keycloak).verify(token) == Principal(account_id, Role.SELLER)
+    assert KeycloakAccessTokens(keycloak).verify(token) == Principal(account_id, Role.SELLER)
 
 
 def test_an_email_that_already_has_an_account_is_refused(api: TestClient) -> None:

@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from kart.app.api import create_app
-from kart.contexts.identity.contracts import Principal, Role, signed_in_principal
+from kart.contexts.identity.contracts import Principal, Role
+from kart.contexts.identity.contracts.signed_in import signed_in_principal
 from tests.app.environment import set_environment
 from tests.app.keycloak import (
     KeycloakAdmin,

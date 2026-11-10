@@ -11,8 +11,8 @@ from kart.contexts.identity.contracts import (
     InvalidAccessTokenError,
     Principal,
     Role,
-    keep_signed_in_principal,
 )
+from kart.contexts.identity.contracts.signed_in import keep_signed_in_principal
 
 # Anything outside these prefixes, such as /v1/storefront, is open to anyone.
 _SIGNED_IN_PREFIXES = {f"/v1/{role}": role for role in Role}

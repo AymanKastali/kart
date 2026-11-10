@@ -17,7 +17,7 @@ pyproject.toml                  the kart package, tool config and import-linter 
 Dockerfile                      the one image every Kart process runs from
 src/kart/
   shared/                       technical plumbing contexts' adapters build on: the outbox and the inbox
-    kernel/                     the shared kernel: Money, typed ids, event envelope
+    kernel/                     the shared kernel: Money, typed ids, event envelope, the Unit of Work type
   contexts/                     one package per bounded context
     identity/                   Keycloak integration, Seller sign-up, token verification, the realm's settings
     seller_onboarding/
@@ -42,12 +42,16 @@ Kart is one package. The bounded contexts are kept apart by import-linter, not b
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared.kernel` but never `kart.app`. The rest of `kart.shared` is technical plumbing with no domain meaning, such as `kart.shared.outbox`; only a context's `infrastructure` and `migrations` may import it, it imports no context, and the kernel never imports it. The shared kernel imports no context and, like a Core `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared.kernel` but never `kart.app`. The rest of `kart.shared` is technical plumbing with no domain meaning, such as `kart.shared.outbox`; only a context's `infrastructure` and `migrations` may import it, it imports no context, and the kernel never imports it. The shared kernel imports no context and, like every `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
 
-How much layering a context gets depends on its subdomain:
+Every context is hexagonal ([ADR-0012](../adr/0012-ports-and-adapters-in-every-context.md)), in up to four layers, each added when it first has code:
 
-- **Core (Ordering, Fulfilment, Offer):** hexagonal. `domain` (pure Python: no FastAPI, Starlette, SQLAlchemy or Pydantic imports), `application` (use cases and ports), `infrastructure` (repositories, imperative SQLAlchemy mapping, adapters), `api` (FastAPI routers).
-- **Supporting and generic:** thin service plus repository code, still behind `contracts`.
+- `domain`: the model, in pure Python (no FastAPI, Starlette, SQLAlchemy or Pydantic).
+- `application`: the use cases, and in `ports.py` the `typing.Protocol`s they need from outside the process. A use case runs its changes in a `UnitOfWork`, which hands it a repository bound to one transaction. It imports no database, HTTP, broker, token or web library.
+- `infrastructure`: the adapters that implement the ports, such as `PostgresSellerApplicationRepository` and `KeycloakIdentityProvider`.
+- `api`: the FastAPI routers.
+
+`api` and `infrastructure` build on `application`, which builds on `domain`, and neither of the outer two imports the other. `kart.app` builds the adapters and hands them to the use cases. How deep a model goes depends on the subdomain: Core contexts (Ordering, Fulfilment, Offer) get rich domain models; Supporting and generic ones stay as thin as their job allows.
 
 ## Data
 
@@ -97,7 +101,7 @@ One versioned REST/JSON API with OpenAPI docs, organised by audience. Each route
 | `/v1/operator/...` | Operator | Seller Onboarding and Catalog approval queues, Catalog (Categories, Referral Fees), Discovery (curation), read-only views of Orders and Shipments |
 | `/v1/webhooks/payments` | Stripe | Payment (signature-verified) |
 
-Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). One app-wide dependency in `kart.app` checks every request against its path: `/v1/customer`, `/v1/seller` and `/v1/operator` need a token for that role, and anything else, such as `/v1/storefront`, is open. It refuses a missing or invalid token with 401, the wrong role with 403, and answers 503 while Keycloak's signing keys can't be fetched. Identity's `contracts` verify the JWT: the signature against the realm's cached keys, the expiry, and that it was issued for the `kart-api` client. A token must carry exactly one of Kart's roles. Inside the app, contexts see only a `Principal`: an Account id and a role. The dependency keeps the Principal it let through on the request, and a route under a signed-in audience reads it with Identity's `signed_in_principal`. Only Identity imports the JWT library; the rest of the app only passes it Keycloak's URL.
+Authentication uses Keycloak OIDC ([ADR-0005](../adr/0005-keycloak-for-identity.md)). One app-wide dependency in `kart.app` checks every request against its path: `/v1/customer`, `/v1/seller` and `/v1/operator` need a token for that role, and anything else, such as `/v1/storefront`, is open. It refuses a missing or invalid token with 401, the wrong role with 403, and answers 503 while Keycloak's signing keys can't be fetched. Identity's `KeycloakAccessTokens`, the adapter behind the `AccessTokens` Protocol in its `contracts`, verifies the JWT: the signature against the realm's cached keys, the expiry, and that it was issued for the `kart-api` client. A token must carry exactly one of Kart's roles. Inside the app, contexts see only a `Principal`: an Account id and a role. The dependency keeps the Principal it let through on the request, and a route under a signed-in audience reads it with `signed_in_principal` from Identity's `contracts.signed_in`, the one part of the contracts that imports FastAPI. Only Identity imports the JWT library; the rest of the app only passes it Keycloak's URL.
 
 Keycloak imports the realm only when it doesn't exist yet, so the one-shot `keycloak-setup` service applies the realm's settings that Identity owns through the admin API on every `compose up`, before the app processes start: the SMTP server Keycloak sends its email through, email verification, password reset, the password policy, and names being optional, so an Account needs only an email and a password. Applying them again changes nothing.
 

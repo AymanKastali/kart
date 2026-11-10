@@ -7,12 +7,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 
-from kart.contexts.identity.keycloak_accounts import (
-    Credentials,
-    EmailTakenError,
-    SignUpRefusedError,
+from kart.contexts.identity.application.ports import EmailTakenError, SignUpRefusedError
+from kart.contexts.identity.application.seller_sign_up import (
+    SellerSignUp,  # noqa: TC001 FastAPI reads it
 )
-from kart.contexts.identity.seller_sign_up import SellerSignUp  # noqa: TC001 FastAPI reads it
+from kart.contexts.identity.domain.account import Credentials
 
 router = APIRouter(prefix="/v1/storefront/seller-accounts", tags=["Identity"])
 

@@ -105,15 +105,35 @@ allow_indirect_imports = true
 ignore_imports = ["kart.contexts.identity.** -> jwt"]
 
 [[tool.importlinter.contracts]]
-name = "Core domain models and the shared kernel are pure Python"
+name = "Domain models and the shared kernel are pure Python"
 type = "forbidden"
-source_modules = [
-    "kart.shared.kernel",
-    "kart.contexts.ordering.domain",
-    "kart.contexts.fulfilment.domain",
-    "kart.contexts.offer.domain",
-]
+source_modules = ["kart.shared.kernel", "kart.contexts.*.domain"]
 forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
+
+[[tool.importlinter.contracts]]
+# Dependency inversion (CODING_STANDARDS.md): a use case declares a port, a typing.Protocol,
+# for anything outside the process, and the app hands it an adapter that implements it.
+name = "Use cases reach the outside world only through ports"
+type = "forbidden"
+source_modules = ["kart.contexts.*.application"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "pydantic",
+    "httpx",
+    "pika",
+    "jwt",
+    "alembic",
+]
+
+[[tool.importlinter.contracts]]
+# The routes and the adapters both build on the use cases, never on each other: the app
+# wires an adapter into a use case. Every layer is optional, so a context grows into them.
+name = "A context's layers depend inwards"
+type = "layers"
+containers = ["kart.contexts.*"]
+layers = ["(api) | (infrastructure)", "(application)", "(domain)"]
 
 [tool.ruff]
 line-length = 100
@@ -129,6 +149,12 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # pytest asserts, literal expected values, and fixtures, which pytest passes by name
 "tests/**" = ["S101", "PLR2004", "PLR0917"]
+
+# An interface is a typing.Protocol, which a class implements by its shape alone.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"abc.ABC".msg = "Declare the interface as a typing.Protocol (CODING_STANDARDS.md)"
+"abc.ABCMeta".msg = "Declare the interface as a typing.Protocol (CODING_STANDARDS.md)"
+"abc.abstractmethod".msg = "Declare the interface as a typing.Protocol (CODING_STANDARDS.md)"
 
 # Pydantic reads its models' annotations at runtime, so their types are imported for real.
 [tool.ruff.lint.flake8-type-checking]

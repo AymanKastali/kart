@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Column, Integer, MetaData, String, Table, Uuid, select, update
 from sqlalchemy.dialects.postgresql import insert
 
-from kart.contexts.seller_onboarding.seller_application import (
+from kart.contexts.seller_onboarding.domain.seller_application import (
     BusinessDetails,
     Iban,
     SellerApplication,
@@ -34,42 +34,40 @@ _seller_applications = Table(
 )
 
 
-def find(session: Session, account_id: AccountId) -> SellerApplication | None:
-    """The Seller Application the Seller with this Account submitted, if it submitted one."""
-    row = session.execute(
-        select(_seller_applications).where(_seller_applications.c.account_id == account_id)
-    ).one_or_none()
-    return None if row is None else _seller_application(row)
+class PostgresSellerApplicationRepository:
+    """Implements `SellerApplicationRepository` inside one transaction."""
 
+    def __init__(self, session: Session) -> None:
+        self._session = session
 
-def add(session: Session, seller_application: SellerApplication) -> None:
-    """Raises `SellerApplicationChangedError` if the Seller has one already."""
-    added = session.scalar(
-        insert(_seller_applications)
-        .values(_row(seller_application))
-        .on_conflict_do_nothing(index_elements=[_seller_applications.c.account_id])
-        .returning(_seller_applications.c.account_id)
-    )
-    if added is None:
-        raise SellerApplicationChangedError
+    def find(self, account_id: AccountId) -> SellerApplication | None:
+        row = self._session.execute(
+            select(_seller_applications).where(_seller_applications.c.account_id == account_id)
+        ).one_or_none()
+        return None if row is None else _seller_application(row)
 
-
-def replace(session: Session, seller_application: SellerApplication, *, read_version: int) -> None:
-    """Replace the Seller Application as it was read at `read_version`.
-
-    Raises `SellerApplicationChangedError` if another write has changed it since.
-    """
-    replaced = session.scalar(
-        update(_seller_applications)
-        .where(
-            _seller_applications.c.account_id == seller_application.account_id,
-            _seller_applications.c.version == read_version,
+    def add(self, seller_application: SellerApplication) -> None:
+        added = self._session.scalar(
+            insert(_seller_applications)
+            .values(_row(seller_application))
+            .on_conflict_do_nothing(index_elements=[_seller_applications.c.account_id])
+            .returning(_seller_applications.c.account_id)
         )
-        .values(_row(seller_application))
-        .returning(_seller_applications.c.account_id)
-    )
-    if replaced is None:
-        raise SellerApplicationChangedError
+        if added is None:
+            raise SellerApplicationChangedError
+
+    def replace(self, seller_application: SellerApplication, *, read_version: int) -> None:
+        replaced = self._session.scalar(
+            update(_seller_applications)
+            .where(
+                _seller_applications.c.account_id == seller_application.account_id,
+                _seller_applications.c.version == read_version,
+            )
+            .values(_row(seller_application))
+            .returning(_seller_applications.c.account_id)
+        )
+        if replaced is None:
+            raise SellerApplicationChangedError
 
 
 def _row(seller_application: SellerApplication) -> dict:

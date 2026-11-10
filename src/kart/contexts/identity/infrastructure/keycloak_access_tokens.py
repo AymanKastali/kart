@@ -1,54 +1,26 @@
-"""Who is calling: the Principal behind an access token, which is all other contexts see of an
-Account. Only Identity knows the tokens come from Keycloak (ADR-0005)."""
+"""Access tokens as Keycloak signs them: JWTs checked against the realm's public keys
+(ADR-0005)."""
 
-from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any
 
 import jwt
-from fastapi import Request  # noqa: TC002 FastAPI reads the annotation to pass the request
 
-from kart.contexts.identity.keycloak import REALM
+from kart.contexts.identity.contracts import (
+    IdentityUnavailableError,
+    InvalidAccessTokenError,
+    Principal,
+    Role,
+)
+from kart.contexts.identity.infrastructure.keycloak import REALM
 from kart.shared.kernel.ids import AccountId
 
 # The client a token must be issued for, so a token meant for another client is refused.
 _API_CLIENT_ID = "kart-api"
 
 
-class Role(StrEnum):
-    CUSTOMER = "customer"
-    SELLER = "seller"
-    OPERATOR = "operator"
+class KeycloakAccessTokens:
+    """Implements `AccessTokens` for the tokens Keycloak signs."""
 
-
-@dataclass(frozen=True, slots=True)
-class Principal:
-    """The Account behind a request, with its one role."""
-
-    account_id: AccountId
-    role: Role
-
-
-def keep_signed_in_principal(request: Request, principal: Principal) -> None:
-    """Keep the Principal the app let through to a signed-in audience's route."""
-    request.state.principal = principal
-
-
-def signed_in_principal(request: Request) -> Principal:
-    """The Principal behind a request to a signed-in audience's route, which the app has already
-    let through for its role. A route asks for it as a FastAPI dependency."""
-    return request.state.principal
-
-
-class InvalidAccessTokenError(Exception):
-    """The token is not a valid, unexpired Kart token for exactly one role."""
-
-
-class IdentityUnavailableError(Exception):
-    """The keys that sign access tokens can't be fetched, so no token can be checked."""
-
-
-class AccessTokens:
     def __init__(self, identity_url: str) -> None:
         # Caches the realm's public keys, and fetches them again when a token names a key it
         # hasn't seen, so the keys can be rotated.
@@ -57,9 +29,7 @@ class AccessTokens:
         )
 
     def verify(self, token: str) -> Principal:
-        """The Principal the token was issued to.
-
-        The issuer isn't checked: only this realm's keys can sign a token that passes, and the
+        """The issuer isn't checked: only this realm's keys can sign a token that passes, and the
         issuer names whichever host the caller reached Keycloak at.
         """
         try:

@@ -6,8 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
-from kart.contexts.identity.contracts import Principal, signed_in_principal
-from kart.contexts.seller_onboarding.seller_application import (
+from kart.contexts.identity.contracts import Principal  # noqa: TC001 FastAPI reads it
+from kart.contexts.identity.contracts.signed_in import signed_in_principal
+from kart.contexts.seller_onboarding.application.seller_applications import (
+    SellerApplications,  # noqa: TC001 FastAPI reads it
+)
+from kart.contexts.seller_onboarding.domain.seller_application import (
     BusinessDetails,
     Iban,
     NoSellerApplicationError,
@@ -17,9 +21,6 @@ from kart.contexts.seller_onboarding.seller_application import (
     VatNumber,
     parse_iban,
     parse_vat_number,
-)
-from kart.contexts.seller_onboarding.seller_applications import (
-    SellerApplications,  # noqa: TC001 FastAPI reads it
 )
 
 router = APIRouter(prefix="/v1/seller/application", tags=["Seller Onboarding"])

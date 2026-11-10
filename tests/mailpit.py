@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from kart.contexts.identity.realm import SmtpServer
+from kart.contexts.identity.infrastructure.realm import SmtpServer
 
 # Where the test Mailpit takes email, as Compose's does.
 SMTP_SERVER = SmtpServer("mailpit", 1025, "no-reply@kart.local", starttls=False)

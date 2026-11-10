@@ -2,8 +2,8 @@ import pytest
 from pydantic import ValidationError
 
 from kart.app.settings import Settings
-from kart.contexts.identity.keycloak import KeycloakAdminLogin
-from kart.contexts.identity.realm import SmtpLogin, SmtpServer
+from kart.contexts.identity.infrastructure.keycloak import KeycloakAdminLogin
+from kart.contexts.identity.infrastructure.realm import SmtpLogin, SmtpServer
 from tests.app.environment import ENVIRONMENT, set_environment
 
 

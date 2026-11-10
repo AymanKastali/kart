@@ -10,8 +10,8 @@ from urllib.parse import quote
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from kart.contexts.identity.keycloak import KeycloakAdminLogin
-from kart.contexts.identity.realm import SmtpLogin, SmtpServer
+from kart.contexts.identity.infrastructure.keycloak import KeycloakAdminLogin
+from kart.contexts.identity.infrastructure.realm import SmtpLogin, SmtpServer
 
 
 class Settings(BaseSettings):

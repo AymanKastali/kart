@@ -1,21 +1,27 @@
 """The `api` process: every HTTP route, served by uvicorn: `python -m kart.app.api`."""
 
 from contextlib import asynccontextmanager
-from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import uvicorn
 from fastapi import Depends, FastAPI
 
 from kart.app.audiences import admit_only_the_audience
-from kart.app.database import create_database_engine, unit_of_work
+from kart.app.database import create_database_engine, units_of_work
 from kart.app.observability import set_up_observability
 from kart.app.settings import Settings
-from kart.contexts.identity import routes as identity_routes
-from kart.contexts.identity.contracts import AccessTokens
-from kart.contexts.identity.seller_sign_up import SellerSignUp
-from kart.contexts.seller_onboarding import routes as seller_onboarding_routes
-from kart.contexts.seller_onboarding.seller_applications import SellerApplications
+from kart.contexts.identity.api import routes as identity_routes
+from kart.contexts.identity.application.seller_sign_up import SellerSignUp
+from kart.contexts.identity.infrastructure.account_repository import PostgresAccountRepository
+from kart.contexts.identity.infrastructure.keycloak_access_tokens import KeycloakAccessTokens
+from kart.contexts.identity.infrastructure.keycloak_identity_provider import (
+    KeycloakIdentityProvider,
+)
+from kart.contexts.seller_onboarding.api import routes as seller_onboarding_routes
+from kart.contexts.seller_onboarding.application.seller_applications import SellerApplications
+from kart.contexts.seller_onboarding.infrastructure.seller_application_repository import (
+    PostgresSellerApplicationRepository,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, MutableMapping
@@ -29,12 +35,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # leaving a healthy-looking api that fails on its first real request.
     settings = Settings()
     engine = create_database_engine(settings.database_url)
-    app.state.access_tokens = AccessTokens(settings.keycloak_url)
+    # The one place the use cases are handed the adapters that implement their ports.
+    app.state.access_tokens = KeycloakAccessTokens(settings.keycloak_url)
     app.state.seller_sign_up = SellerSignUp(
-        settings.keycloak_admin, partial(unit_of_work, engine, "identity")
+        KeycloakIdentityProvider(settings.keycloak_admin),
+        units_of_work(engine, "identity", PostgresAccountRepository),
     )
     app.state.seller_applications = SellerApplications(
-        partial(unit_of_work, engine, "seller_onboarding")
+        units_of_work(engine, "seller_onboarding", PostgresSellerApplicationRepository)
     )
     yield
     engine.dispose()

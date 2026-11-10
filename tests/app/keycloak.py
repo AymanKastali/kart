@@ -8,8 +8,8 @@ from uuid import uuid4
 import httpx
 
 from kart.contexts.identity.contracts import Role
-from kart.contexts.identity.keycloak import REALM, KeycloakAdminLogin
-from kart.contexts.identity.realm import apply_realm_settings
+from kart.contexts.identity.infrastructure.keycloak import REALM, KeycloakAdminLogin
+from kart.contexts.identity.infrastructure.realm import apply_realm_settings
 from tests.mailpit import SMTP_SERVER
 
 # The client the API accepts tokens for.
