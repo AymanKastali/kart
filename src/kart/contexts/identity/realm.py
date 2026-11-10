@@ -42,8 +42,9 @@ def apply_realm_settings(admin: KeycloakAdminLogin, smtp_server: SmtpServer) -> 
 
     Applying the same settings again changes nothing.
     """
-    with admin_client(admin) as realm:
-        realm.put(
+    with admin_client(admin) as admin_api:
+        # The admin API's root is the realm itself.
+        admin_api.put(
             "",
             json={
                 "smtpServer": _smtp_settings(smtp_server),
@@ -52,15 +53,15 @@ def apply_realm_settings(admin: KeycloakAdminLogin, smtp_server: SmtpServer) -> 
                 "passwordPolicy": _PASSWORD_POLICY,
             },
         ).raise_for_status()
-        _make_names_optional(realm)
+        _make_names_optional(admin_api)
 
 
-def _make_names_optional(realm: httpx.Client) -> None:
-    profile = realm.get("/users/profile").raise_for_status().json()
+def _make_names_optional(admin_api: httpx.Client) -> None:
+    profile = admin_api.get("/users/profile").raise_for_status().json()
     for attribute in profile["attributes"]:
         if attribute["name"] in _OPTIONAL_PROFILE_ATTRIBUTES:
             attribute.pop("required", None)
-    realm.put("/users/profile", json=profile).raise_for_status()
+    admin_api.put("/users/profile", json=profile).raise_for_status()
 
 
 def _smtp_settings(server: SmtpServer) -> dict[str, str]:

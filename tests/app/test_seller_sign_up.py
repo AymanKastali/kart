@@ -150,6 +150,17 @@ def test_signing_up_publishes_that_an_account_registered(
     }
 
 
+def test_an_account_is_announced_with_its_email_in_lower_case_as_keycloak_keeps_it(
+    api: TestClient, identity_outbox: OutboxEvents
+) -> None:
+    email = new_email()
+
+    api.post(SIGN_UP, json={"email": email.upper(), "password": PASSWORD})
+
+    [event] = identity_outbox.published()
+    assert event.payload["email"] == email
+
+
 def test_an_email_that_already_has_an_account_is_announced_only_once(
     api: TestClient, identity_outbox: OutboxEvents
 ) -> None:
@@ -161,31 +172,49 @@ def test_an_email_that_already_has_an_account_is_announced_only_once(
     assert len(identity_outbox.published()) == 1
 
 
-def test_a_retry_registers_a_seller_account_that_a_crash_left_unregistered(
-    keycloak: str, api: TestClient, identity_outbox: OutboxEvents
-) -> None:
+def test_a_retry_after_a_crash_is_refused(keycloak: str, api: TestClient) -> None:
     # Created in Keycloak, as by a sign-up that crashed before Identity recorded the Account.
-    admin = KeycloakAdmin(keycloak)
-    seller = email_address(admin.new_account([Role.SELLER]))
+    seller = email_address(KeycloakAdmin(keycloak).new_account([Role.SELLER]))
 
     response = api.post(SIGN_UP, json={"email": seller, "password": PASSWORD})
 
     assert response.status_code == 409
-    [event] = identity_outbox.published()
-    assert event.payload["email"] == seller
-    assert event.payload["account_id"] == admin.account_id_with_email(seller)
 
 
-def test_a_retry_makes_an_account_that_a_crash_left_without_a_role_a_seller(
+def test_a_retry_registers_a_seller_account_that_a_crash_left_unregistered(
     keycloak: str, api: TestClient, identity_outbox: OutboxEvents
 ) -> None:
     admin = KeycloakAdmin(keycloak)
-    credentials = admin.new_account([])
+    seller = email_address(admin.new_account([Role.SELLER]))
+
+    api.post(SIGN_UP, json={"email": seller, "password": PASSWORD})
+
+    [event] = identity_outbox.published()
+    assert event.payload == {
+        "account_id": admin.account_id_with_email(seller),
+        "role": "seller",
+        "email": seller,
+    }
+
+
+def test_a_retry_makes_an_account_that_a_crash_left_without_a_role_a_seller(
+    keycloak: str, api: TestClient
+) -> None:
+    credentials = KeycloakAdmin(keycloak).new_account([])
 
     api.post(SIGN_UP, json={"email": email_address(credentials), "password": PASSWORD})
 
     principal = AccessTokens(keycloak).verify(access_token(keycloak, credentials))
     assert principal.role == Role.SELLER
+
+
+def test_a_retry_registers_an_account_that_a_crash_left_without_a_role_as_a_seller(
+    keycloak: str, api: TestClient, identity_outbox: OutboxEvents
+) -> None:
+    credentials = KeycloakAdmin(keycloak).new_account([])
+
+    api.post(SIGN_UP, json={"email": email_address(credentials), "password": PASSWORD})
+
     [event] = identity_outbox.published()
     assert event.payload["role"] == "seller"
 

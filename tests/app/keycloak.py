@@ -82,12 +82,10 @@ class KeycloakAdmin:
         return self._get("")
 
     def account_id(self, username: str) -> str:
-        users = self._get(f"/users?username={username}&exact=true")
-        return users[0]["id"]
+        return self._account_id(f"username={username}")
 
     def account_id_with_email(self, email: str) -> str:
-        users = self._get(f"/users?email={email}&exact=true")
-        return users[0]["id"]
+        return self._account_id(f"email={email}")
 
     def new_account(self, roles: list[Role]) -> Credentials:
         """A new Account with exactly `roles`."""
@@ -113,6 +111,10 @@ class KeycloakAdmin:
             },
         )
         return client_id
+
+    def _account_id(self, search: str) -> str:
+        [account] = self._get(f"/users?{search}&exact=true")
+        return account["id"]
 
     def _get(self, path: str) -> Any:  # noqa: ANN401 whatever JSON the admin API answers with
         response = self._client.get(f"{self._realm_url}{path}")

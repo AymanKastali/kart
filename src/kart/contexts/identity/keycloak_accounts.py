@@ -1,6 +1,6 @@
 """Kart's Accounts as Keycloak holds them, created through its admin API."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import httpx
@@ -19,16 +19,21 @@ class EmailTakenError(Exception):
 
 class SignUpRefusedError(Exception):
     """Keycloak refused the Account, for example because the realm's password policy refuses
-    its password."""
+    its password. The message says why."""
 
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
-        self.reason = reason
+
+@dataclass(frozen=True, slots=True)
+class Credentials:
+    """What an Account signs in with."""
+
+    email: str
+    password: str = field(repr=False)
 
 
 @dataclass(frozen=True, slots=True)
 class KeycloakAccount:
     account_id: AccountId
+    # In lower case, as Keycloak keeps every email.
     email: str
     # Only Kart's roles, not the ones Keycloak gives every Account.
     roles: frozenset[Role]
@@ -38,24 +43,24 @@ class KeycloakAccounts:
     def __init__(self, admin: KeycloakAdminLogin) -> None:
         self._admin = admin
 
-    def create_seller(self, email: str, password: str) -> AccountId:
+    def create_seller(self, credentials: Credentials) -> KeycloakAccount:
         """A new Seller Account, signed in with its email, which it must verify first."""
-        with admin_client(self._admin) as realm:
-            response = realm.post("/users", json=_unverified_account(email, password))
+        with admin_client(self._admin) as admin_api:
+            response = admin_api.post("/users", json=_unverified_account(credentials))
             _raise_if_refused(response)
             account_id = AccountId(response.headers["Location"].rsplit("/", 1)[-1])
-            _give_seller_role(realm, account_id)
-        return account_id
+            _give_seller_role(admin_api, account_id)
+        return KeycloakAccount(account_id, credentials.email.lower(), frozenset({Role.SELLER}))
 
     def with_email(self, email: str) -> KeycloakAccount:
         """The Account that has this email."""
-        with admin_client(self._admin) as realm:
+        with admin_client(self._admin) as admin_api:
             [account] = (
-                realm.get("/users", params={"email": email, "exact": "true"})
+                admin_api.get("/users", params={"email": email, "exact": "true"})
                 .raise_for_status()
                 .json()
             )
-            roles = realm.get(f"/users/{account['id']}/role-mappings/realm").raise_for_status()
+            roles = admin_api.get(f"/users/{account['id']}/role-mappings/realm").raise_for_status()
         return KeycloakAccount(
             AccountId(account["id"]),
             account["email"],
@@ -63,29 +68,31 @@ class KeycloakAccounts:
         )
 
     def make_seller(self, account_id: AccountId) -> None:
-        with admin_client(self._admin) as realm:
-            _give_seller_role(realm, account_id)
+        with admin_client(self._admin) as admin_api:
+            _give_seller_role(admin_api, account_id)
 
     def send_email_verification(self, account_id: AccountId) -> None:
         """Email the Account a link that verifies its email address."""
-        with admin_client(self._admin) as realm:
-            realm.put(f"/users/{account_id}/send-verify-email").raise_for_status()
+        with admin_client(self._admin) as admin_api:
+            admin_api.put(f"/users/{account_id}/send-verify-email").raise_for_status()
 
 
-def _unverified_account(email: str, password: str) -> dict:
+def _unverified_account(credentials: Credentials) -> dict:
     return {
-        "username": email,
-        "email": email,
+        "username": credentials.email,
+        "email": credentials.email,
         "enabled": True,
         # Keycloak refuses to sign the Account in until the email is verified.
         "requiredActions": ["VERIFY_EMAIL"],
-        "credentials": [{"type": "password", "value": password, "temporary": False}],
+        "credentials": [{"type": "password", "value": credentials.password, "temporary": False}],
     }
 
 
-def _give_seller_role(realm: httpx.Client, account_id: AccountId) -> None:
-    seller_role = realm.get(f"/roles/{Role.SELLER}").raise_for_status().json()
-    realm.post(f"/users/{account_id}/role-mappings/realm", json=[seller_role]).raise_for_status()
+def _give_seller_role(admin_api: httpx.Client, account_id: AccountId) -> None:
+    seller_role = admin_api.get(f"/roles/{Role.SELLER}").raise_for_status().json()
+    admin_api.post(
+        f"/users/{account_id}/role-mappings/realm", json=[seller_role]
+    ).raise_for_status()
 
 
 def _raise_if_refused(response: httpx.Response) -> None:

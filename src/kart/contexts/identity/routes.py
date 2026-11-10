@@ -7,7 +7,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 
-from kart.contexts.identity.keycloak_accounts import EmailTakenError, SignUpRefusedError
+from kart.contexts.identity.keycloak_accounts import (
+    Credentials,
+    EmailTakenError,
+    SignUpRefusedError,
+)
 from kart.contexts.identity.seller_sign_up import SellerSignUp  # noqa: TC001 FastAPI reads it
 
 router = APIRouter(prefix="/v1/storefront/seller-accounts", tags=["Identity"])
@@ -32,9 +36,9 @@ def sign_up_seller(
     form: SellerSignUpForm, sign_up: Annotated[SellerSignUp, Depends(seller_sign_up)]
 ) -> SignedUpSeller:
     try:
-        account_id = sign_up.sign_up(form.email, form.password)
+        account_id = sign_up.sign_up(Credentials(form.email, form.password))
     except EmailTakenError:
         raise HTTPException(status.HTTP_409_CONFLICT, "An Account already has this email") from None
     except SignUpRefusedError as refusal:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, refusal.reason) from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(refusal)) from None
     return SignedUpSeller(account_id=account_id)
