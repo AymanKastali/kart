@@ -18,5 +18,9 @@ class AccountId(_Id):
     __slots__ = ()
 
 
+class SellerId(_Id):
+    __slots__ = ()
+
+
 class OrderId(_Id):
     __slots__ = ()

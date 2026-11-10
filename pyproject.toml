@@ -150,7 +150,7 @@ max-returns = 4
 paths = ["src", "tests"]
 min_confidence = 60
 # Pytest, FastAPI and Pydantic call what they decorate.
-ignore_decorators = ["@pytest.fixture", "@*.get", "@*.post", "@model_validator"]
+ignore_decorators = ["@pytest.fixture", "@*.get", "@*.post", "@*.put", "@model_validator"]
 ignore_names = [
     "pytestmark",
     # Alembic reads these from every migration.
