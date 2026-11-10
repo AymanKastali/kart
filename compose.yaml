@@ -26,6 +26,8 @@ x-app: &app
       condition: service_completed_successfully
     rabbitmq-setup:
       condition: service_completed_successfully
+    keycloak-setup:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
@@ -78,6 +80,17 @@ services:
       interval: 5s
       retries: 30
 
+  # Catches every email Kart and Keycloak send, so none leaves the machine; its UI shows them.
+  # In production, SMTP_* in .env point at Resend instead.
+  mailpit:
+    image: axllent/mailpit:v1.33
+    restart: unless-stopped
+    ports: ["127.0.0.1:${MAILPIT_HOST_PORT:-8025}:8025"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      retries: 20
+
   # The local trace viewer: Kart's processes export their spans to it over OTLP, and its UI
   # shows each trace. Traces live in memory, so a restart clears them.
   jaeger:
@@ -101,6 +114,16 @@ services:
     command: ["python", "-m", "kart.app.rabbitmq_setup"]
     depends_on:
       rabbitmq:
+        condition: service_healthy
+
+  # Brings the kart realm's settings (email, email verification, password reset, password
+  # policy) up to date, then exits. The realm import above skips an existing realm; this
+  # reaches it too, and changes nothing when the settings are already applied.
+  keycloak-setup:
+    <<: *kart
+    command: ["python", "-m", "kart.app.keycloak_setup"]
+    depends_on:
+      keycloak:
         condition: service_healthy
 
   # Change data capture: streams every context's outbox from the write-ahead log to the

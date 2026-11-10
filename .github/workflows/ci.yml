@@ -54,6 +54,8 @@ jobs:
             sleep 2
           done
           exit 1
+      - name: keycloak-setup ran
+        run: test "$(docker compose ps -a keycloak-setup --format '{{.ExitCode}}')" = 0
       - name: Keycloak signs in the local customer
         run: |
           curl -fsS http://localhost:8080/realms/kart/protocol/openid-connect/token \
