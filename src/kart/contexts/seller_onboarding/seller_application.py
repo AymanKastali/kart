@@ -67,8 +67,16 @@ class SellerApplication:
     # Counts the changes, so a write based on an older one is refused.
     version: int
 
-    def resubmitted(self, details: BusinessDetails) -> SellerApplication:
-        """The Seller Application with the business details the Seller submitted again."""
+    def corrected(self, details: BusinessDetails, *, read_version: int) -> SellerApplication:
+        """The Seller Application with the business details the Seller corrected at the version it
+        read. Unchanged details leave it, and its version, as it is.
+
+        Raises `SellerApplicationChangedError` unless `read_version` is its version.
+        """
+        if read_version != self.version:
+            raise SellerApplicationChangedError
+        if details == self.details:
+            return self
         return replace(self, details=details, version=self.version + 1)
 
 

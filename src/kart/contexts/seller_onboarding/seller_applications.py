@@ -1,4 +1,4 @@
-"""A Seller submits its Seller Application and reads it back."""
+"""A Seller submits its Seller Application, corrects it and reads it back."""
 
 from typing import TYPE_CHECKING
 
@@ -44,17 +44,28 @@ class SellerApplications:
         return seller_application
 
     def submit(self, account_id: AccountId, details: BusinessDetails) -> SellerApplication:
-        """The Seller Application with the business details the Seller submitted, for the first
-        time or again.
+        """The Seller Application the Seller submitted for the first time.
 
-        Raises `SellerApplicationChangedError` if another submission changed it meanwhile.
+        Raises `SellerApplicationChangedError` if it has submitted one already.
+        """
+        submitted = first_submission(account_id, details)
+        with self._unit_of_work() as session:
+            add(session, submitted)
+        return submitted
+
+    def correct(
+        self, account_id: AccountId, details: BusinessDetails, *, read_version: int
+    ) -> SellerApplication:
+        """The Seller Application with the business details the Seller corrected at the version it
+        read.
+
+        Raises `NoSellerApplicationError` if it has submitted none, and
+        `SellerApplicationChangedError` if it has changed since `read_version`.
         """
         with self._unit_of_work() as session:
             current = find(session, account_id)
             if current is None:
-                submitted = first_submission(account_id, details)
-                add(session, submitted)
-            else:
-                submitted = current.resubmitted(details)
-                replace(session, submitted, read_version=current.version)
-        return submitted
+                raise NoSellerApplicationError
+            corrected = current.corrected(details, read_version=read_version)
+            replace(session, corrected, read_version=current.version)
+        return corrected

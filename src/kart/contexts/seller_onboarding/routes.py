@@ -54,6 +54,12 @@ class BusinessDetailsJson(BaseModel):
         )
 
 
+class SubmissionJson(BaseModel):
+    business_details: BusinessDetailsJson
+    # The version of the Seller Application the Seller read and corrects; left out the first time.
+    version: int | None = None
+
+
 class SellerApplicationJson(BaseModel):
     seller_id: UUID
     business_details: BusinessDetailsJson
@@ -85,22 +91,57 @@ def read_seller_application(
     try:
         seller_application = applications.read(principal.account_id)
     except NoSellerApplicationError:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "This Seller has submitted no Seller Application"
-        ) from None
+        raise _no_seller_application() from None
     return SellerApplicationJson.from_seller_application(seller_application)
 
 
 @router.put("")
 def submit_seller_application(
-    details: BusinessDetailsJson,
+    submission: SubmissionJson,
     principal: Annotated[Principal, Depends(signed_in_principal)],
     applications: Annotated[SellerApplications, Depends(seller_applications)],
 ) -> SellerApplicationJson:
+    details = submission.business_details.business_details()
+    if submission.version is None:
+        seller_application = _first_submission(applications, principal, details)
+    else:
+        seller_application = _correction(
+            applications, principal, details, read_version=submission.version
+        )
+    return SellerApplicationJson.from_seller_application(seller_application)
+
+
+def _first_submission(
+    applications: SellerApplications, principal: Principal, details: BusinessDetails
+) -> SellerApplication:
     try:
-        seller_application = applications.submit(principal.account_id, details.business_details())
+        return applications.submit(principal.account_id, details)
     except SellerApplicationChangedError:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "Another submission changed the Seller Application meanwhile"
+            status.HTTP_409_CONFLICT,
+            "This Seller has submitted a Seller Application already: correct it at the version it "
+            "read",
         ) from None
-    return SellerApplicationJson.from_seller_application(seller_application)
+
+
+def _correction(
+    applications: SellerApplications,
+    principal: Principal,
+    details: BusinessDetails,
+    *,
+    read_version: int,
+) -> SellerApplication:
+    try:
+        return applications.correct(principal.account_id, details, read_version=read_version)
+    except NoSellerApplicationError:
+        raise _no_seller_application() from None
+    except SellerApplicationChangedError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "The Seller Application has changed since that version"
+        ) from None
+
+
+def _no_seller_application() -> HTTPException:
+    return HTTPException(
+        status.HTTP_404_NOT_FOUND, "This Seller has submitted no Seller Application"
+    )
