@@ -76,7 +76,7 @@ type = "forbidden"
 source_modules = [
     "kart.contexts.*.domain",
     "kart.contexts.*.application",
-    "kart.contexts.*.api",
+    "kart.contexts.*.presentation",
     "kart.contexts.*.contracts",
 ]
 forbidden_modules = ["kart.shared.inbox", "kart.shared.outbox"]
@@ -91,7 +91,7 @@ forbidden_modules = [
     "kart.contexts.*.domain",
     "kart.contexts.*.application",
     "kart.contexts.*.infrastructure",
-    "kart.contexts.*.api",
+    "kart.contexts.*.presentation",
 ]
 
 [[tool.importlinter.contracts]]
@@ -142,7 +142,7 @@ forbidden_modules = [
 name = "A context's layers depend inwards"
 type = "layers"
 containers = ["kart.contexts.*"]
-layers = ["(api) | (infrastructure)", "(application)", "(domain)"]
+layers = ["(presentation) | (infrastructure)", "(application)", "(domain)"]
 
 [tool.ruff]
 line-length = 100

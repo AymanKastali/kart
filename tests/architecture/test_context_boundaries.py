@@ -31,7 +31,7 @@ OUTSIDE_WORLD_LIBRARIES = [
 CONTEXTS_WITH_CODE = ["identity", "seller_onboarding", "ordering"]
 # A context's adapters may use the shared plumbing; the layers inside them may not.
 ADAPTER_LAYERS = ["infrastructure", "migrations"]
-INNER_LAYERS = ["domain", "application", "api", "contracts"]
+INNER_LAYERS = ["domain", "application", "presentation", "contracts"]
 
 
 def contracts_kept(tmp_path: Path, imports: dict[str, str]) -> bool:
@@ -124,10 +124,10 @@ def test_a_contexts_infrastructure_may_implement_its_ports(tmp_path: Path) -> No
 @pytest.mark.parametrize(
     ("importer", "imported"),
     [
-        ("api", "infrastructure"),
-        ("infrastructure", "api"),
+        ("presentation", "infrastructure"),
+        ("infrastructure", "presentation"),
         ("application", "infrastructure"),
-        ("application", "api"),
+        ("application", "presentation"),
         ("domain", "application"),
     ],
 )
