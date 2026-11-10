@@ -1,15 +1,19 @@
 """The `api` process: every HTTP route, served by uvicorn: `python -m kart.app.api`."""
 
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import uvicorn
 from fastapi import Depends, FastAPI
 
 from kart.app.audiences import principal_for_audience
+from kart.app.database import create_database_engine, unit_of_work
 from kart.app.observability import set_up_observability
 from kart.app.settings import Settings
+from kart.contexts.identity import routes as identity_routes
 from kart.contexts.identity.contracts import AccessTokens
+from kart.contexts.identity.seller_sign_up import SellerSignUp
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, MutableMapping
@@ -22,8 +26,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Read the settings at startup, so a missing variable stops the process instead of
     # leaving a healthy-looking api that fails on its first real request.
     settings = Settings()
+    engine = create_database_engine(settings.database_url)
     app.state.access_tokens = AccessTokens(settings.keycloak_url)
+    app.state.seller_sign_up = SellerSignUp(
+        settings.keycloak_admin, partial(unit_of_work, engine, "identity")
+    )
     yield
+    engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -36,6 +45,7 @@ def create_app() -> FastAPI:
         telemetry={"exclude": _is_health_check},
     )
     app.get(_HEALTH_PATH)(health)
+    app.include_router(identity_routes.router)
     return app
 
 

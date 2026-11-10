@@ -1,24 +1,21 @@
-"""The Keycloak realm that holds Kart's Accounts, and the settings Identity keeps it at.
+"""The settings Identity keeps the kart realm at.
 
 Keycloak imports the realm only when it doesn't exist yet, so a setting added later would never
 reach an existing stack. Applying the settings through the admin API on every start does.
 """
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-import httpx
+from kart.contexts.identity.keycloak import KeycloakAdminLogin, admin_client
 
-REALM = "kart"
+if TYPE_CHECKING:
+    import httpx
+
 _PASSWORD_POLICY = "length(8) and notUsername and notEmail"  # noqa: S105 a rule, not a password
-
-
-@dataclass(frozen=True, slots=True)
-class KeycloakAdminLogin:
-    """Where Keycloak is, and how its administrator, who may change its realms, signs in."""
-
-    url: str
-    username: str
-    password: str = field(repr=False)
+# Keycloak's default profile asks every Account for these, but Kart never does: a Seller's
+# names are in its Seller Application.
+_OPTIONAL_PROFILE_ATTRIBUTES = {"firstName", "lastName"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,35 +37,31 @@ class SmtpServer:
 
 
 def apply_realm_settings(admin: KeycloakAdminLogin, smtp_server: SmtpServer) -> None:
-    """Give the realm its email, email verification, password reset and password policy.
+    """Give the realm its email, email verification, password reset and password policy, and
+    let an Account sign in with only an email and a password.
 
     Applying the same settings again changes nothing.
     """
-    response = httpx.put(
-        f"{admin.url}/admin/realms/{REALM}",
-        headers={"Authorization": f"Bearer {_admin_token(admin)}"},
-        json={
-            "smtpServer": _smtp_settings(smtp_server),
-            "verifyEmail": True,
-            "resetPasswordAllowed": True,
-            "passwordPolicy": _PASSWORD_POLICY,
-        },
-    )
-    response.raise_for_status()
+    with admin_client(admin) as admin_api:
+        # The admin API's root is the realm itself.
+        admin_api.put(
+            "",
+            json={
+                "smtpServer": _smtp_settings(smtp_server),
+                "verifyEmail": True,
+                "resetPasswordAllowed": True,
+                "passwordPolicy": _PASSWORD_POLICY,
+            },
+        ).raise_for_status()
+        _make_names_optional(admin_api)
 
 
-def _admin_token(admin: KeycloakAdminLogin) -> str:
-    response = httpx.post(
-        f"{admin.url}/realms/master/protocol/openid-connect/token",
-        data={
-            "grant_type": "password",
-            "client_id": "admin-cli",
-            "username": admin.username,
-            "password": admin.password,
-        },
-    )
-    response.raise_for_status()
-    return response.json()["access_token"]
+def _make_names_optional(admin_api: httpx.Client) -> None:
+    profile = admin_api.get("/users/profile").raise_for_status().json()
+    for attribute in profile["attributes"]:
+        if attribute["name"] in _OPTIONAL_PROFILE_ATTRIBUTES:
+            attribute.pop("required", None)
+    admin_api.put("/users/profile", json=profile).raise_for_status()
 
 
 def _smtp_settings(server: SmtpServer) -> dict[str, str]:

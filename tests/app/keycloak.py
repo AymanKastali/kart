@@ -8,7 +8,8 @@ from uuid import uuid4
 import httpx
 
 from kart.contexts.identity.contracts import Role
-from kart.contexts.identity.realm import REALM, KeycloakAdminLogin, apply_realm_settings
+from kart.contexts.identity.keycloak import REALM, KeycloakAdminLogin
+from kart.contexts.identity.realm import apply_realm_settings
 from tests.mailpit import SMTP_SERVER
 
 # The client the API accepts tokens for.
@@ -31,7 +32,7 @@ def local_account(role: Role) -> Credentials:
 
 def email_address(credentials: Credentials) -> str:
     """The email address of an Account made by `KeycloakAdmin.new_account`."""
-    return f"{credentials.username}@kart.local"
+    return f"{credentials.username}@example.com"
 
 
 def access_token(
@@ -81,8 +82,10 @@ class KeycloakAdmin:
         return self._get("")
 
     def account_id(self, username: str) -> str:
-        users = self._get(f"/users?username={username}&exact=true")
-        return users[0]["id"]
+        return self._account_id(f"username={username}")
+
+    def account_id_with_email(self, email: str) -> str:
+        return self._account_id(f"email={email}")
 
     def new_account(self, roles: list[Role]) -> Credentials:
         """A new Account with exactly `roles`."""
@@ -108,6 +111,10 @@ class KeycloakAdmin:
             },
         )
         return client_id
+
+    def _account_id(self, search: str) -> str:
+        [account] = self._get(f"/users?{search}&exact=true")
+        return account["id"]
 
     def _get(self, path: str) -> Any:  # noqa: ANN401 whatever JSON the admin API answers with
         response = self._client.get(f"{self._realm_url}{path}")

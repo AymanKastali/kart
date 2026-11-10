@@ -2,7 +2,8 @@ import pytest
 from pydantic import ValidationError
 
 from kart.app.settings import Settings
-from kart.contexts.identity.realm import KeycloakAdminLogin, SmtpLogin, SmtpServer
+from kart.contexts.identity.keycloak import KeycloakAdminLogin
+from kart.contexts.identity.realm import SmtpLogin, SmtpServer
 from tests.app.environment import ENVIRONMENT, set_environment
 
 
@@ -18,6 +19,15 @@ def test_settings_build_the_connection_urls_from_environment_variables() -> None
     assert settings.database_url == "postgresql+psycopg://kart:p%40ss%2Fword@postgres:5432/kart"
     assert settings.rabbitmq_url == "amqp://kart:secret@rabbitmq:5672/"
     assert settings.keycloak_url == "http://keycloak:8080"
+
+
+@pytest.mark.usefixtures("environment")
+def test_postgres_can_listen_on_another_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("POSTGRES_PORT", "5434")
+
+    settings = Settings()
+
+    assert settings.database_url == "postgresql+psycopg://kart:p%40ss%2Fword@postgres:5434/kart"
 
 
 @pytest.mark.usefixtures("environment")

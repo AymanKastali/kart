@@ -22,11 +22,18 @@ This starts Postgres (with `wal_level=logical`), RabbitMQ, Keycloak, Mailpit, De
 | Mailpit (every email sent) | http://localhost:8025 |
 | Postgres | `localhost:5432` |
 
-Keycloak imports the `kart` realm from `keycloak/kart-realm.json`, and `keycloak-setup` gives it its email, email verification, password reset and password policy, also when the realm already exists. Keycloak's emails, such as a password reset link, land in Mailpit. The realm has one local account per role, each with its role as both name and password: `customer`, `seller` and `operator`. To call the API as one of them, get a token from the `kart-api` client and send it as `Authorization: Bearer <token>`:
+Keycloak imports the `kart` realm from `keycloak/kart-realm.json`, and `keycloak-setup` gives it its email, email verification, password reset and password policy, and lets an Account sign in with only an email and a password, also when the realm already exists. Keycloak's emails, such as a password reset link, land in Mailpit. The realm has one local account per role, each with its role as both name and password: `customer`, `seller` and `operator`. To call the API as one of them, get a token from the `kart-api` client and send it as `Authorization: Bearer <token>`:
 
 ```sh
 curl -s http://localhost:8080/realms/kart/protocol/openid-connect/token \
   -d grant_type=password -d client_id=kart-api -d username=customer -d password=customer
+```
+
+A business signs up for a Seller Account with an email and a password. Keycloak emails it a link, which lands in Mailpit, and it can sign in, with its email as the username, once it has opened the link:
+
+```sh
+curl -s http://localhost:8000/v1/storefront/seller-accounts \
+  -H 'Content-Type: application/json' -d '{"email": "shop@example.com", "password": "a-good-password"}'
 ```
 
 Ports listen on localhost only. If one is already taken on your machine, publish it elsewhere by setting `POSTGRES_HOST_PORT`, `RABBITMQ_HOST_PORT`, `RABBITMQ_MANAGEMENT_HOST_PORT`, `KEYCLOAK_HOST_PORT`, `MAILPIT_HOST_PORT`, `JAEGER_HOST_PORT` or `API_HOST_PORT` in your shell or in `.env`, for example `POSTGRES_HOST_PORT=5434`. Follow the logs with `docker compose logs -f`. Stop the stack with `docker compose down`, and add `-v` to also delete the Postgres, RabbitMQ and Debezium data.
@@ -36,7 +43,7 @@ Ports listen on localhost only. If one is already taken on your machine, publish
 `.env.example` is the one place the local users, passwords and hosts are set, and Compose hands it to every container as it is:
 
 - Postgres, RabbitMQ and Keycloak create their users from it, and Debezium Server connects with them.
-- Every Kart process reads it at startup through `kart.app.settings`, which builds the database and RabbitMQ URLs from it. A process refuses to start if a value is missing.
+- Every Kart process reads it at startup through `kart.app.settings`, which builds the database and RabbitMQ URLs from it. A process refuses to start if a value is missing. Postgres is reached on port 5432 unless `POSTGRES_PORT` says otherwise.
 - `SMTP_*` say where email goes: Mailpit locally. In production, `.env` points them at Resend, as `.env.example` describes.
 
 Every Kart process logs one JSON object per line and exports its traces to `OTEL_EXPORTER_OTLP_ENDPOINT`, the local Jaeger by default. Set it empty to export nothing. Errors go to Sentry only when `SENTRY_DSN` is set; locally it isn't.
