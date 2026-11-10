@@ -18,25 +18,5 @@ class AccountId(_Id):
     __slots__ = ()
 
 
-class SellerId(_Id):
-    __slots__ = ()
-
-
-class ProductId(_Id):
-    __slots__ = ()
-
-
-class OfferId(_Id):
-    __slots__ = ()
-
-
 class OrderId(_Id):
-    __slots__ = ()
-
-
-class ShipmentId(_Id):
-    __slots__ = ()
-
-
-class CategoryId(_Id):
     __slots__ = ()

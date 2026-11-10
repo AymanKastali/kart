@@ -30,10 +30,12 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "import-linter>=2.16,<3",
+    "pylint>=4,<5",
     "pytest>=9.2.0,<10",
     "ruff>=0.17.4,<0.18",
     "testcontainers[postgres,rabbitmq]>=4.15.0,<5",
     "ty>=0.0.99,<0.0.100",
+    "vulture>=2.14,<3",
 ]
 
 [tool.pytest]
@@ -124,7 +126,48 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "PLR2004"] # pytest asserts, literal expected values
+# pytest asserts, literal expected values, and fixtures, which pytest passes by name
+"tests/**" = ["S101", "PLR2004", "PLR0917"]
+
+# Small functions that do one thing (CODING_STANDARDS.md).
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.ruff.lint.pylint]
+max-args = 4
+max-positional-args = 3
+max-statements = 15
+max-branches = 6
+max-returns = 4
+
+# Code nothing uses is dead or speculative. Below 60% confidence it is mostly noise.
+[tool.vulture]
+paths = ["src", "tests"]
+min_confidence = 60
+# Pytest, FastAPI and Pydantic call what they decorate.
+ignore_decorators = ["@pytest.fixture", "@*.get", "@model_validator"]
+ignore_names = [
+    "pytestmark",
+    # Alembic reads these from every migration.
+    "revision",
+    "down_revision",
+    "branch_labels",
+    "depends_on",
+    "downgrade",
+    # Role's members are read by iterating over Role.
+    "CUSTOMER",
+    "SELLER",
+    "OPERATOR",
+]
+
+# Only pylint's duplicate-code check: ruff covers the rest.
+[tool.pylint.main]
+disable = ["all"]
+enable = ["duplicate-code"]
+ignore-paths = [".*/migrations/.*"]
+
+[tool.pylint.similarities]
+min-similarity-lines = 4
 
 [tool.ty.terminal]
 error-on-warning = true
