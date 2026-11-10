@@ -7,7 +7,7 @@ from typing import Any
 
 import jwt
 
-from kart.contexts.identity.realm import REALM
+from kart.contexts.identity.keycloak import REALM
 from kart.shared.kernel.ids import AccountId
 
 # The client a token must be issued for, so a token meant for another client is refused.

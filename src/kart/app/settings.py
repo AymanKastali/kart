@@ -10,11 +10,13 @@ from urllib.parse import quote
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from kart.contexts.identity.realm import KeycloakAdminLogin, SmtpLogin, SmtpServer
+from kart.contexts.identity.keycloak import KeycloakAdminLogin
+from kart.contexts.identity.realm import SmtpLogin, SmtpServer
 
 
 class Settings(BaseSettings):
     postgres_host: str
+    postgres_port: int = 5432
     postgres_user: str
     postgres_password: str
     postgres_db: str
@@ -40,7 +42,7 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         credentials = _url_credentials(self.postgres_user, self.postgres_password)
-        return f"postgresql+psycopg://{credentials}@{self.postgres_host}:5432/{self.postgres_db}"
+        return f"postgresql+psycopg://{credentials}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
     @property
     def rabbitmq_url(self) -> str:

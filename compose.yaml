@@ -68,6 +68,10 @@ services:
       - ./keycloak/kart-realm.json:/opt/keycloak/data/import/kart-realm.json:ro
     environment:
       KC_HEALTH_ENABLED: "true"
+      # Links in its emails, such as to verify an email address, open in a browser on this
+      # machine, while Kart's processes reach it at keycloak:8080.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_HOST_PORT:-8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     ports: ["127.0.0.1:${KEYCLOAK_HOST_PORT:-8080}:8080"]
     healthcheck:
       # The image has no curl, so ask the management port's health endpoint with bash.

@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 # major from 1.0 on, below the next minor for 0.x packages, where minors can break.
 dependencies = [
     "alembic>=1.20.1,<2",
+    "email-validator>=2,<3",
     "fastapi>=0.162.2,<0.163",
     "httpx>=0.28.1,<0.29",
     "opentelemetry-api>=1.45.2,<2",
@@ -129,6 +130,10 @@ ignore = [
 # pytest asserts, literal expected values, and fixtures, which pytest passes by name
 "tests/**" = ["S101", "PLR2004", "PLR0917"]
 
+# Pydantic reads its models' annotations at runtime, so their types are imported for real.
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
 # Small functions that do one thing (CODING_STANDARDS.md).
 [tool.ruff.lint.mccabe]
 max-complexity = 5
@@ -145,7 +150,7 @@ max-returns = 4
 paths = ["src", "tests"]
 min_confidence = 60
 # Pytest, FastAPI and Pydantic call what they decorate.
-ignore_decorators = ["@pytest.fixture", "@*.get", "@model_validator"]
+ignore_decorators = ["@pytest.fixture", "@*.get", "@*.post", "@model_validator"]
 ignore_names = [
     "pytestmark",
     # Alembic reads these from every migration.
