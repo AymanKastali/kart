@@ -22,7 +22,8 @@ finishes a turn. Another hook formats and lints each Python file Claude edits, a
 | Everything else ruff checks | ruff (`select = ["ALL"]`) | |
 | Types | ty | no errors or warnings |
 | Context boundaries | import-linter | the contracts in `pyproject.toml` |
-| A context's layers depend inwards | import-linter | `api` and `infrastructure` build on `application`, which builds on `domain`; neither of the outer two imports the other |
+| A context's code sits in the classic layers | pytest (`tests/architecture`) | `domain`, `application`, `infrastructure` and `presentation` (its HTTP routes in `presentation/api`), beside its `contracts` and `migrations`, and nothing else |
+| A context's layers depend inwards | import-linter | `presentation` and `infrastructure` build on `application`, which builds on `domain`; neither of the outer two imports the other |
 | Use cases reach the outside world only through ports | import-linter | no `application` or `domain` imports a database, HTTP, broker, token or web library |
 | Interfaces are Protocols | ruff (`TID251`) | no `abc.ABC`, `ABCMeta` or `abstractmethod` |
 

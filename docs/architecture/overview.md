@@ -42,16 +42,16 @@ Kart is one package. The bounded contexts are kept apart by import-linter, not b
 
 ## Inside a context
 
-Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `api`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared.kernel` but never `kart.app`. The rest of `kart.shared` is technical plumbing with no domain meaning, such as `kart.shared.outbox`; only a context's `infrastructure` and `migrations` may import it, it imports no context, and the kernel never imports it. The shared kernel imports no context and, like every `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
+Each context exposes exactly one importable surface, `contracts`: its synchronous commands and queries, their data objects, and its integration event schemas. import-linter fails CI on any import of another context's internals. Every package under `kart.contexts` must be independent of the others except through their `contracts`. A `contracts` module never imports its own context's `domain`, `application`, `infrastructure` or `presentation`: the internals implement the contracts, so the contracts can't leak them. Contexts may import `kart.shared.kernel` but never `kart.app`. The rest of `kart.shared` is technical plumbing with no domain meaning, such as `kart.shared.outbox`; only a context's `infrastructure` and `migrations` may import it, it imports no context, and the kernel never imports it. The shared kernel imports no context and, like every `domain`, no FastAPI, Starlette, SQLAlchemy or Pydantic.
 
-Every context is hexagonal ([ADR-0012](../adr/0012-ports-and-adapters-in-every-context.md)), in up to four layers, each added when it first has code:
+Every context is hexagonal ([ADR-0012](../adr/0012-ports-and-adapters-in-every-context.md)), in up to four layers, the classic ones, each added when it first has code. A context holds nothing else but its `contracts` and `migrations`:
 
 - `domain`: the model, in pure Python (no FastAPI, Starlette, SQLAlchemy or Pydantic).
 - `application`: the use cases, and in `ports.py` the `typing.Protocol`s they need from outside the process. A use case runs its changes in a `UnitOfWork`, which hands it a repository bound to one transaction. It imports no database, HTTP, broker, token or web library.
 - `infrastructure`: the adapters that implement the ports, such as `PostgresSellerApplicationRepository` and `KeycloakIdentityProvider`.
-- `api`: the FastAPI routers.
+- `presentation`: how the outside world calls the context. Its `api` package holds the FastAPI routers.
 
-`api` and `infrastructure` build on `application`, which builds on `domain`, and neither of the outer two imports the other. `kart.app` builds the adapters and hands them to the use cases. How deep a model goes depends on the subdomain: Core contexts (Ordering, Fulfilment, Offer) get rich domain models; Supporting and generic ones stay as thin as their job allows.
+`presentation` and `infrastructure` build on `application`, which builds on `domain`, and neither of the outer two imports the other. `kart.app` builds the adapters and hands them to the use cases. How deep a model goes depends on the subdomain: Core contexts (Ordering, Fulfilment, Offer) get rich domain models; Supporting and generic ones stay as thin as their job allows.
 
 ## Data
 

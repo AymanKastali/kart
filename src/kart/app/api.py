@@ -10,18 +10,18 @@ from kart.app.audiences import admit_only_the_audience
 from kart.app.database import create_database_engine, units_of_work
 from kart.app.observability import set_up_observability
 from kart.app.settings import Settings
-from kart.contexts.identity.api import routes as identity_routes
 from kart.contexts.identity.application.seller_sign_up import SellerSignUp
 from kart.contexts.identity.infrastructure.account_repository import PostgresAccountRepository
 from kart.contexts.identity.infrastructure.keycloak_access_tokens import keycloak_access_tokens
 from kart.contexts.identity.infrastructure.keycloak_identity_provider import (
     KeycloakIdentityProvider,
 )
-from kart.contexts.seller_onboarding.api import routes as seller_onboarding_routes
+from kart.contexts.identity.presentation.api import routes as identity_routes
 from kart.contexts.seller_onboarding.application.seller_applications import SellerApplications
 from kart.contexts.seller_onboarding.infrastructure.seller_application_repository import (
     PostgresSellerApplicationRepository,
 )
+from kart.contexts.seller_onboarding.presentation.api import routes as seller_onboarding_routes
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, MutableMapping
