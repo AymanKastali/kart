@@ -19,10 +19,12 @@ def _idle(_settings: Settings, stopped: threading.Event) -> None:
     stopped.wait()
 
 
-def run_until_stopped(name: str, work: Callable[[Settings, threading.Event], None] = _idle) -> None:
+def run_until_stopped(
+    process: str, work: Callable[[Settings, threading.Event], None] = _idle
+) -> None:
     """Check the settings, announce the process, then `work` until SIGTERM (or Ctrl-C)."""
     settings = Settings()  # a missing variable stops the process here
-    set_up_observability(name, settings)
+    set_up_observability(process, settings)
     stopped = threading.Event()
 
     def stop(_signal: int, _frame: FrameType | None) -> None:
@@ -30,5 +32,5 @@ def run_until_stopped(name: str, work: Callable[[Settings, threading.Event], Non
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    _logger.info("%s started", name)
+    _logger.info("%s started", process)
     work(settings, stopped)

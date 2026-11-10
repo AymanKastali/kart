@@ -49,7 +49,7 @@ Ordering never reads Discovery at checkout. Discovery is an eventually consisten
 Kept deliberately minimal; anything added needs a reason:
 
 - `Money`: AED in minor units, with 5% VAT rules.
-- Typed ids: `AccountId`, `SellerId`, `ProductId`, `OfferId`, `OrderId`, `ShipmentId`, `CategoryId`.
+- Typed ids: `AccountId` and `OrderId` so far. The others (`SellerId`, `ProductId`, `OfferId`, `ShipmentId`, `CategoryId`) join with the slice that first uses them.
 - The integration-event envelope (id, type with its version such as `order.confirmed.v1`, time it happened, trace context, payload).
 
 Everything else belongs to one context, even if it looks duplicated.

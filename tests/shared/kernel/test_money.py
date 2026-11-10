@@ -15,8 +15,10 @@ from kart.shared.kernel.money import Money
         (0, 0),
     ],
 )
-def test_vat_included_is_five_105ths_rounded_to_the_fil(amount_fils: int, vat_fils: int) -> None:
-    assert Money(amount_fils).vat_included() == Money(vat_fils)
+def test_the_included_vat_is_five_105ths_rounded_to_the_fil(
+    amount_fils: int, vat_fils: int
+) -> None:
+    assert Money(amount_fils).included_vat() == Money(vat_fils)
 
 
 def test_amounts_add_up() -> None:
@@ -40,5 +42,6 @@ def test_a_negative_amount_is_refused() -> None:
 
 def test_an_amount_is_immutable() -> None:
     amount = Money(100)
+
     with pytest.raises(AttributeError):
         amount.fils = 200  # ty: ignore[invalid-assignment]

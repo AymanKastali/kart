@@ -23,14 +23,19 @@ def a_log_line(message: str, *, error: BaseException | None = None) -> dict[str,
     return json.loads(JsonLogFormatter().format(record))
 
 
+def test_a_line_carries_its_message_level_and_logger() -> None:
+    line = a_log_line("Order placed")
+
+    assert line["message"] == "Order placed"
+    assert line["level"] == "WARNING"
+    assert line["logger"] == "kart.test"
+
+
 @pytest.mark.usefixtures("spans")
 def test_a_line_logged_inside_a_span_carries_its_trace_and_span_ids() -> None:
     with _tracer.start_as_current_span("request") as span:
         line = a_log_line("Order placed")
 
-    assert line["message"] == "Order placed"
-    assert line["level"] == "WARNING"
-    assert line["logger"] == "kart.test"
     assert line["trace_id"] == f"{span.get_span_context().trace_id:032x}"
     assert line["span_id"] == f"{span.get_span_context().span_id:016x}"
 

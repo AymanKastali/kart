@@ -14,14 +14,15 @@ from sqlalchemy import Engine, make_url
 from testcontainers.community.rabbitmq import RabbitMqContainer
 from testcontainers.core.container import DockerContainer
 
-from kart.app.database import create_database_engine
+from kart.app.database import create_database_engine, unit_of_work
 from kart.app.migrate import migrate
 from kart.app.rabbitmq_setup import set_up_rabbitmq
 from kart.shared.kernel.event_envelope import EventEnvelope
+from kart.shared.outbox import write_to_outbox
 from tests.conftest import new_database
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Mapping
 
     from pika.adapters.blocking_connection import BlockingChannel
     from testcontainers.community.postgres import PostgresContainer
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 # tests/shared/<this file> -> the repository root.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 THROWAWAY_CONTEXTS = Path(__file__).with_name("contexts")
+# The throwaway context that publishes events in these tests.
+THROWAWAY = "throwaway"
 RABBITMQ_USER = "kart"
 RABBITMQ_PASSWORD = "kart"  # noqa: S105 a throwaway broker
 # Long enough for Debezium to start, connect and catch up.
@@ -108,6 +111,29 @@ def an_event(event_type: str) -> EventEnvelope:
         occurred_at=datetime.now(UTC),
         payload={"widget_id": "W-1", "quantity": 3, "gift": True, "note": None},
     )
+
+
+def publish_through_outbox(engine: Engine, event: EventEnvelope) -> None:
+    """Commit `event` to the throwaway context's outbox, as a context's use case would."""
+    with unit_of_work(engine, THROWAWAY) as session:
+        write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
+
+
+def next_message(channel: BlockingChannel, queue: str) -> tuple[Mapping[str | bytes, object], str]:
+    """The headers and body of the next message on `queue`, waiting for it to arrive."""
+
+    def get() -> tuple[Mapping[str | bytes, object], str] | None:
+        method, properties, body = channel.basic_get(queue, auto_ack=True)
+        if method is None or properties is None or body is None:
+            return None
+        return properties.headers or {}, body.decode()
+
+    return eventually(get, f"A message on {queue}")
+
+
+def wait_until(condition: Callable[[], bool], what: str) -> None:
+    """Wait for `condition` to hold, trying until the timeout."""
+    eventually(lambda: True if condition() else None, what)
 
 
 def eventually[T](check: Callable[[], T | None], what: str) -> T:

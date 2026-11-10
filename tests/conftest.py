@@ -1,5 +1,5 @@
-"""Real infrastructure for the tests that need it, started once per test run and only if a test
-asks for it."""
+"""What tests across the suite share: real infrastructure, started once per test run and only if
+a test asks for it, and the spans a test finishes."""
 
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -15,7 +15,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.network import Network
 from testcontainers.core.wait_strategies import HttpWaitStrategy
 
-from tests.mailpit import Mailpit
+from tests.mailpit import MAILPIT_API_PORT, Mailpit
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -61,12 +61,12 @@ def mailpit(network: Network) -> Iterator[Mailpit]:
         DockerContainer("axllent/mailpit:v1.33")
         .with_network(network)
         .with_network_aliases("mailpit")
-        .with_exposed_ports(8025)
-        .waiting_for(HttpWaitStrategy(8025, "/readyz"))
+        .with_exposed_ports(MAILPIT_API_PORT)
+        .waiting_for(HttpWaitStrategy(MAILPIT_API_PORT, "/readyz"))
     )
     with container:
         yield Mailpit(
-            f"http://{container.get_container_host_ip()}:{container.get_exposed_port(8025)}"
+            f"http://{container.get_container_host_ip()}:{container.get_exposed_port(MAILPIT_API_PORT)}"
         )
 
 
