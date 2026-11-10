@@ -197,34 +197,44 @@ def test_a_retry_registers_a_seller_account_that_a_crash_left_unregistered(
     }
 
 
-def test_a_retry_makes_an_account_that_a_crash_left_without_a_role_a_seller(
-    keycloak: str, api: TestClient
+@pytest.mark.parametrize("roles", [[Role.CUSTOMER], []], ids=["another role", "no role"])
+def test_an_email_held_by_an_account_that_isnt_a_seller_is_refused_without_registering_it(
+    keycloak: str, api: TestClient, identity_outbox: OutboxEvents, roles: list[Role]
 ) -> None:
-    credentials = KeycloakAdmin(keycloak).new_account([])
+    account = email_address(KeycloakAdmin(keycloak).new_account(roles))
 
-    api.post(SIGN_UP, json={"email": email_address(credentials), "password": PASSWORD})
-
-    principal = AccessTokens(keycloak).verify(access_token(keycloak, credentials))
-    assert principal.role == Role.SELLER
-
-
-def test_a_retry_registers_an_account_that_a_crash_left_without_a_role_as_a_seller(
-    keycloak: str, api: TestClient, identity_outbox: OutboxEvents
-) -> None:
-    credentials = KeycloakAdmin(keycloak).new_account([])
-
-    api.post(SIGN_UP, json={"email": email_address(credentials), "password": PASSWORD})
-
-    [event] = identity_outbox.published()
-    assert event.payload["role"] == "seller"
-
-
-def test_an_email_held_by_another_roles_account_is_refused_without_registering_it(
-    keycloak: str, api: TestClient, identity_outbox: OutboxEvents
-) -> None:
-    customer = email_address(KeycloakAdmin(keycloak).new_account([Role.CUSTOMER]))
-
-    response = api.post(SIGN_UP, json={"email": customer, "password": PASSWORD})
+    response = api.post(SIGN_UP, json={"email": account, "password": PASSWORD})
 
     assert response.status_code == 409
     assert identity_outbox.published() == []
+
+
+def test_an_email_taken_as_another_accounts_username_is_refused(
+    keycloak: str, api: TestClient
+) -> None:
+    email = new_email()
+    KeycloakAdmin(keycloak).new_account_named(email)
+
+    response = api.post(SIGN_UP, json={"email": email, "password": PASSWORD})
+
+    assert response.status_code == 409
+
+
+def test_a_retry_before_verifying_emails_the_link_again(api: TestClient, mailpit: Mailpit) -> None:
+    email = new_email()
+    api.post(SIGN_UP, json={"email": email, "password": PASSWORD})
+
+    api.post(SIGN_UP, json={"email": email, "password": PASSWORD})
+
+    emails = mailpit.emails_to(email, count=2)
+    assert [email.subject for email in emails] == ["Verify email", "Verify email"]
+
+
+def test_a_retry_after_verifying_emails_no_link(api: TestClient, mailpit: Mailpit) -> None:
+    email = new_email()
+    api.post(SIGN_UP, json={"email": email, "password": PASSWORD})
+    verify_email(mailpit.email_to(email))
+
+    api.post(SIGN_UP, json={"email": email, "password": PASSWORD})
+
+    assert len(mailpit.emails_to(email, count=1)) == 1

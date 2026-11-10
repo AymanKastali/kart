@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from kart.contexts.identity.contracts import Role
-from kart.contexts.identity.keycloak import admin_client
+from kart.contexts.identity.keycloak import SELLERS_GROUP, admin_client
 from kart.shared.kernel.ids import AccountId
 
 if TYPE_CHECKING:
@@ -37,6 +37,7 @@ class KeycloakAccount:
     email: str
     # Only Kart's roles, not the ones Keycloak gives every Account.
     roles: frozenset[Role]
+    email_verified: bool
 
 
 class KeycloakAccounts:
@@ -46,30 +47,37 @@ class KeycloakAccounts:
     def create_seller(self, credentials: Credentials) -> KeycloakAccount:
         """A new Seller Account, signed in with its email, which it must verify first."""
         with admin_client(self._admin) as admin_api:
-            response = admin_api.post("/users", json=_unverified_account(credentials))
+            response = admin_api.post("/users", json=_unverified_seller(credentials))
             _raise_if_refused(response)
-            account_id = AccountId(response.headers["Location"].rsplit("/", 1)[-1])
-            _give_seller_role(admin_api, account_id)
-        return KeycloakAccount(account_id, credentials.email.lower(), frozenset({Role.SELLER}))
+        account_id = AccountId(response.headers["Location"].rsplit("/", 1)[-1])
+        return KeycloakAccount(
+            account_id,
+            credentials.email.lower(),
+            frozenset({Role.SELLER}),
+            email_verified=False,
+        )
 
-    def with_email(self, email: str) -> KeycloakAccount:
-        """The Account that has this email."""
+    def with_email(self, email: str) -> KeycloakAccount | None:
+        """The Account that has this email, if one has it."""
         with admin_client(self._admin) as admin_api:
-            [account] = (
+            accounts = (
                 admin_api.get("/users", params={"email": email, "exact": "true"})
                 .raise_for_status()
                 .json()
             )
-            roles = admin_api.get(f"/users/{account['id']}/role-mappings/realm").raise_for_status()
+            if not accounts:
+                return None
+            [account] = accounts
+            # Composite, so it includes the roles the Account's groups give it.
+            roles = admin_api.get(
+                f"/users/{account['id']}/role-mappings/realm/composite"
+            ).raise_for_status()
         return KeycloakAccount(
             AccountId(account["id"]),
             account["email"],
             frozenset(Role(role["name"]) for role in roles.json() if role["name"] in Role),
+            email_verified=account["emailVerified"],
         )
-
-    def make_seller(self, account_id: AccountId) -> None:
-        with admin_client(self._admin) as admin_api:
-            _give_seller_role(admin_api, account_id)
 
     def send_email_verification(self, account_id: AccountId) -> None:
         """Email the Account a link that verifies its email address."""
@@ -77,25 +85,20 @@ class KeycloakAccounts:
             admin_api.put(f"/users/{account_id}/send-verify-email").raise_for_status()
 
 
-def _unverified_account(credentials: Credentials) -> dict:
+def _unverified_seller(credentials: Credentials) -> dict:
     return {
         "username": credentials.email,
         "email": credentials.email,
         "enabled": True,
+        "groups": [f"/{SELLERS_GROUP}"],
         # Keycloak refuses to sign the Account in until the email is verified.
         "requiredActions": ["VERIFY_EMAIL"],
         "credentials": [{"type": "password", "value": credentials.password, "temporary": False}],
     }
 
 
-def _give_seller_role(admin_api: httpx.Client, account_id: AccountId) -> None:
-    seller_role = admin_api.get(f"/roles/{Role.SELLER}").raise_for_status().json()
-    admin_api.post(
-        f"/users/{account_id}/role-mappings/realm", json=[seller_role]
-    ).raise_for_status()
-
-
 def _raise_if_refused(response: httpx.Response) -> None:
+    # Keycloak also answers a conflict when another Account's username is the email.
     if response.status_code == httpx.codes.CONFLICT:
         raise EmailTakenError
     if response.status_code == httpx.codes.BAD_REQUEST:

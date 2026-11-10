@@ -34,26 +34,26 @@ class SellerSignUp:
         try:
             account = self._keycloak_accounts.create_seller(credentials)
         except EmailTakenError:
-            self._register_a_seller_left_unregistered(credentials.email)
+            self._finish_a_sign_up_that_stopped_part_way(credentials.email)
             raise
         self._register(Account(account.account_id, Role.SELLER, account.email))
         self._keycloak_accounts.send_email_verification(account.account_id)
         return account.account_id
 
-    def _register_a_seller_left_unregistered(self, email: str) -> None:
-        """Finish a sign-up that stopped part way, such as in a crash, so a retry repairs it.
+    def _finish_a_sign_up_that_stopped_part_way(self, email: str) -> None:
+        """Let a retry repair a sign-up that stopped after Keycloak created the Seller Account,
+        such as in a crash before Identity registered it, or when its verification email
+        couldn't be sent.
 
-        Keycloak may hold the Account without its role, and Identity may not have registered
-        it. Registering an Account again changes nothing, and another role's Account is left
-        as it is.
+        Registering an Account again changes nothing, and the link is emailed again until the
+        Account has verified its email. Any other Account with the email is left as it is.
         """
         account = self._keycloak_accounts.with_email(email)
-        held_by_another_role = bool(account.roles - {Role.SELLER})
-        if held_by_another_role:
+        if account is None or account.roles != {Role.SELLER}:
             return
-        if Role.SELLER not in account.roles:
-            self._keycloak_accounts.make_seller(account.account_id)
         self._register(Account(account.account_id, Role.SELLER, account.email))
+        if not account.email_verified:
+            self._keycloak_accounts.send_email_verification(account.account_id)
 
     def _register(self, account: Account) -> None:
         with self._unit_of_work() as session:

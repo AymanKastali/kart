@@ -27,14 +27,18 @@ class Mailpit:
 
     def email_to(self, address: str) -> Email:
         """The one email sent to `address`, waiting for it to arrive."""
+        [email] = self.emails_to(address, count=1)
+        return email
+
+    def emails_to(self, address: str, *, count: int) -> list[Email]:
+        """Every email sent to `address`, waiting for at least `count` of them to arrive."""
         deadline = time.monotonic() + _ARRIVAL_TIMEOUT_SECONDS
-        while not (messages := self._messages_to(address)):
+        while len(messages := self._messages_to(address)) < count:
             if time.monotonic() > deadline:
-                msg = f"no email to {address} arrived"
+                msg = f"{count} emails to {address} didn't arrive"
                 raise AssertionError(msg)
             time.sleep(0.2)
-        [message] = messages
-        return self._email(message["ID"])
+        return [self._email(message["ID"]) for message in messages]
 
     def _messages_to(self, address: str) -> list[dict]:
         response = self._client.get("/search", params={"query": f'to:"{address}"'})

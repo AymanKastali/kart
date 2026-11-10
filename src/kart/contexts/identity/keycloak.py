@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 import httpx
 
 REALM = "kart"
+# Its members hold the `seller` role. Keycloak adds an Account to a group in the same step that
+# creates it, so a Seller Account is never left without its role.
+SELLERS_GROUP = "sellers"
 
 
 @dataclass(frozen=True, slots=True)
