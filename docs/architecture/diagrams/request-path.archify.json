@@ -49,8 +49,8 @@
         },
         {
           "path": "src/kart/shared/outbox.py",
-          "line": 47,
-          "end_line": 70,
+          "line": 52,
+          "end_line": 75,
           "label": "write_to_outbox"
         }
       ]
@@ -63,8 +63,8 @@
       "sources": [
         {
           "path": "src/kart/contexts/identity/infrastructure/keycloak_access_tokens.py",
-          "line": 31,
-          "end_line": 48,
+          "line": 36,
+          "end_line": 53,
           "label": "AccessTokens.verify"
         }
       ]
@@ -130,8 +130,8 @@
         },
         {
           "path": "src/kart/shared/inbox.py",
-          "line": 50,
-          "end_line": 59,
+          "line": 58,
+          "end_line": 67,
           "label": "record_in_inbox"
         }
       ]

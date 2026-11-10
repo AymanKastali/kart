@@ -13,7 +13,7 @@ from kart.app.settings import Settings
 from kart.contexts.identity.api import routes as identity_routes
 from kart.contexts.identity.application.seller_sign_up import SellerSignUp
 from kart.contexts.identity.infrastructure.account_repository import PostgresAccountRepository
-from kart.contexts.identity.infrastructure.keycloak_access_tokens import KeycloakAccessTokens
+from kart.contexts.identity.infrastructure.keycloak_access_tokens import keycloak_access_tokens
 from kart.contexts.identity.infrastructure.keycloak_identity_provider import (
     KeycloakIdentityProvider,
 )
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     settings = Settings()
     engine = create_database_engine(settings.database_url)
     # The one place the use cases are handed the adapters that implement their ports.
-    app.state.access_tokens = KeycloakAccessTokens(settings.keycloak_url)
+    app.state.access_tokens = keycloak_access_tokens(settings.keycloak_url)
     app.state.seller_sign_up = SellerSignUp(
         KeycloakIdentityProvider(settings.keycloak_admin),
         units_of_work(engine, "identity", PostgresAccountRepository),

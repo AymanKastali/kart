@@ -108,7 +108,16 @@ ignore_imports = ["kart.contexts.identity.** -> jwt"]
 name = "Domain models and the shared kernel are pure Python"
 type = "forbidden"
 source_modules = ["kart.shared.kernel", "kart.contexts.*.domain"]
-forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
+forbidden_modules = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "pydantic",
+    "httpx",
+    "pika",
+    "jwt",
+    "alembic",
+]
 
 [[tool.importlinter.contracts]]
 # Dependency inversion (CODING_STANDARDS.md): a use case declares a port, a typing.Protocol,

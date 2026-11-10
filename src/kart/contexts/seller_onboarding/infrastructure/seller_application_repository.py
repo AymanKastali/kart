@@ -10,8 +10,10 @@ from kart.contexts.seller_onboarding.domain.seller_application import (
     Iban,
     SellerApplication,
     SellerApplicationChangedError,
+    SellerApplicationSubmittedError,
     Status,
     VatNumber,
+    Version,
 )
 from kart.shared.kernel.ids import AccountId, SellerId
 
@@ -54,9 +56,9 @@ class PostgresSellerApplicationRepository:
             .returning(_seller_applications.c.account_id)
         )
         if added is None:
-            raise SellerApplicationChangedError
+            raise SellerApplicationSubmittedError
 
-    def replace(self, seller_application: SellerApplication, *, read_version: int) -> None:
+    def replace(self, seller_application: SellerApplication, *, read_version: Version) -> None:
         replaced = self._session.scalar(
             update(_seller_applications)
             .where(
@@ -71,15 +73,15 @@ class PostgresSellerApplicationRepository:
 
 
 def _row(seller_application: SellerApplication) -> dict:
-    details = seller_application.details
+    business_details = seller_application.business_details
     return {
         "account_id": seller_application.account_id,
         "seller_id": seller_application.seller_id,
-        "legal_name": details.legal_name,
-        "display_name": details.display_name,
-        "trade_licence_number": details.trade_licence_number,
-        "vat_number": details.vat_number,
-        "iban": details.iban,
+        "legal_name": business_details.legal_name,
+        "display_name": business_details.display_name,
+        "trade_licence_number": business_details.trade_licence_number,
+        "vat_number": business_details.vat_number,
+        "iban": business_details.iban,
         "status": seller_application.status,
         "version": seller_application.version,
     }
@@ -89,7 +91,7 @@ def _seller_application(row: Row) -> SellerApplication:
     return SellerApplication(
         account_id=AccountId(int=row.account_id.int),
         seller_id=SellerId(int=row.seller_id.int),
-        details=BusinessDetails(
+        business_details=BusinessDetails(
             legal_name=row.legal_name,
             display_name=row.display_name,
             trade_licence_number=row.trade_licence_number,
@@ -97,5 +99,5 @@ def _seller_application(row: Row) -> SellerApplication:
             iban=Iban(row.iban),
         ),
         status=Status(row.status),
-        version=row.version,
+        version=Version(row.version),
     )

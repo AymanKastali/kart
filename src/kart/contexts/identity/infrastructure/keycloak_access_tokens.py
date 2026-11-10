@@ -18,15 +18,20 @@ from kart.shared.kernel.ids import AccountId
 _API_CLIENT_ID = "kart-api"
 
 
+def keycloak_access_tokens(identity_url: str) -> KeycloakAccessTokens:
+    """The access tokens of the Keycloak at `identity_url`."""
+    # Caches the realm's public keys, and fetches them again when a token names a key it hasn't
+    # seen, so the keys can be rotated.
+    return KeycloakAccessTokens(
+        jwt.PyJWKClient(f"{identity_url}/realms/{REALM}/protocol/openid-connect/certs")
+    )
+
+
 class KeycloakAccessTokens:
     """Implements `AccessTokens` for the tokens Keycloak signs."""
 
-    def __init__(self, identity_url: str) -> None:
-        # Caches the realm's public keys, and fetches them again when a token names a key it
-        # hasn't seen, so the keys can be rotated.
-        self._signing_keys = jwt.PyJWKClient(
-            f"{identity_url}/realms/{REALM}/protocol/openid-connect/certs"
-        )
+    def __init__(self, signing_keys: jwt.PyJWKClient) -> None:
+        self._signing_keys = signing_keys
 
     def verify(self, token: str) -> Principal:
         """The issuer isn't checked: only this realm's keys can sign a token that passes, and the

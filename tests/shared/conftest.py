@@ -14,7 +14,7 @@ from sqlalchemy import Engine, make_url
 from testcontainers.community.rabbitmq import RabbitMqContainer
 from testcontainers.core.container import DockerContainer
 
-from kart.app.database import create_database_engine, unit_of_work
+from kart.app.database import create_database_engine, transaction
 from kart.app.migrate import migrate
 from kart.app.rabbitmq_setup import set_up_rabbitmq
 from kart.shared.kernel.event_envelope import EventEnvelope
@@ -115,7 +115,7 @@ def an_event(event_type: str) -> EventEnvelope:
 
 def publish_through_outbox(engine: Engine, event: EventEnvelope) -> None:
     """Commit `event` to the throwaway context's outbox, as a context's use case would."""
-    with unit_of_work(engine, THROWAWAY) as session:
+    with transaction(engine, THROWAWAY) as session:
         write_to_outbox(session, event, aggregate_type="widget", aggregate_id=uuid4())
 
 

@@ -16,10 +16,18 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KART_SRC = REPO_ROOT / "src"
 LINT_IMPORTS = Path(sys.executable).with_name("lint-imports")
-# What the shared kernel and every context's domain must not import.
-FRAMEWORKS = ["fastapi", "starlette", "sqlalchemy", "pydantic"]
-# A use case reaches what these reach only through a port that an adapter implements.
-OUTSIDE_WORLD_LIBRARIES = ["sqlalchemy", "httpx", "pika", "jwt", "fastapi"]
+# The web, database, HTTP, broker, token and migration libraries. The shared kernel and every
+# context's domain never import them, and a use case reaches them only through a port.
+OUTSIDE_WORLD_LIBRARIES = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "pydantic",
+    "httpx",
+    "pika",
+    "jwt",
+    "alembic",
+]
 CONTEXTS_WITH_CODE = ["identity", "seller_onboarding", "ordering"]
 # A context's adapters may use the shared plumbing; the layers inside them may not.
 ADAPTER_LAYERS = ["infrastructure", "migrations"]
@@ -85,17 +93,20 @@ def test_any_part_of_a_context_may_import_the_shared_kernel(tmp_path: Path, laye
 
 
 @pytest.mark.parametrize("context", CONTEXTS_WITH_CODE)
-@pytest.mark.parametrize("framework", FRAMEWORKS)
-def test_a_domain_imports_no_framework(tmp_path: Path, context: str, framework: str) -> None:
-    assert not contracts_kept(tmp_path, {f"kart.contexts.{context}.domain": f"import {framework}"})
+@pytest.mark.parametrize("library", OUTSIDE_WORLD_LIBRARIES)
+def test_a_domain_imports_no_outside_world_library(
+    tmp_path: Path, context: str, library: str
+) -> None:
+    assert not contracts_kept(tmp_path, {f"kart.contexts.{context}.domain": f"import {library}"})
 
 
+@pytest.mark.parametrize("context", CONTEXTS_WITH_CODE)
 @pytest.mark.parametrize("library", OUTSIDE_WORLD_LIBRARIES)
 def test_a_use_case_reaches_the_outside_world_only_through_ports(
-    tmp_path: Path, library: str
+    tmp_path: Path, context: str, library: str
 ) -> None:
     assert not contracts_kept(
-        tmp_path, {"kart.contexts.seller_onboarding.application": f"import {library}"}
+        tmp_path, {f"kart.contexts.{context}.application": f"import {library}"}
     )
 
 
@@ -129,9 +140,9 @@ def test_a_layer_cannot_import_a_layer_it_must_not_know(
     )
 
 
-@pytest.mark.parametrize("framework", FRAMEWORKS)
-def test_the_shared_kernel_imports_no_framework(tmp_path: Path, framework: str) -> None:
-    assert not contracts_kept(tmp_path, {"kart.shared.kernel.money": f"import {framework}"})
+@pytest.mark.parametrize("library", OUTSIDE_WORLD_LIBRARIES)
+def test_the_shared_kernel_imports_no_outside_world_library(tmp_path: Path, library: str) -> None:
+    assert not contracts_kept(tmp_path, {"kart.shared.kernel.money": f"import {library}"})
 
 
 def test_the_shared_kernel_cannot_import_a_context(tmp_path: Path) -> None:

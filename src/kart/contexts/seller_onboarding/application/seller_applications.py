@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from kart.contexts.seller_onboarding.domain.seller_application import (
         BusinessDetails,
         SellerApplication,
+        Version,
     )
     from kart.shared.kernel.ids import AccountId
     from kart.shared.kernel.unit_of_work import UnitOfWork
@@ -27,23 +28,20 @@ class SellerApplications:
         Raises `NoSellerApplicationError` if it has submitted none.
         """
         with self._unit_of_work() as repository:
-            seller_application = repository.find(account_id)
-        if seller_application is None:
-            raise NoSellerApplicationError
-        return seller_application
+            return _submitted(repository, account_id)
 
-    def submit(self, account_id: AccountId, details: BusinessDetails) -> SellerApplication:
+    def submit(self, account_id: AccountId, business_details: BusinessDetails) -> SellerApplication:
         """The Seller Application the Seller submitted for the first time.
 
-        Raises `SellerApplicationChangedError` if it has submitted one already.
+        Raises `SellerApplicationSubmittedError` if it has submitted one already.
         """
-        submitted = first_submission(account_id, details)
+        submitted = first_submission(account_id, business_details)
         with self._unit_of_work() as repository:
             repository.add(submitted)
         return submitted
 
     def correct(
-        self, account_id: AccountId, details: BusinessDetails, *, read_version: int
+        self, account_id: AccountId, business_details: BusinessDetails, *, read_version: Version
     ) -> SellerApplication:
         """The Seller Application with the business details the Seller corrected at the version it
         read.
@@ -52,9 +50,14 @@ class SellerApplications:
         `SellerApplicationChangedError` if it has changed since `read_version`.
         """
         with self._unit_of_work() as repository:
-            current = repository.find(account_id)
-            if current is None:
-                raise NoSellerApplicationError
-            corrected = current.corrected(details, read_version=read_version)
+            current = _submitted(repository, account_id)
+            corrected = current.corrected(business_details, read_version=read_version)
             repository.replace(corrected, read_version=current.version)
         return corrected
+
+
+def _submitted(repository: SellerApplicationRepository, account_id: AccountId) -> SellerApplication:
+    seller_application = repository.find(account_id)
+    if seller_application is None:
+        raise NoSellerApplicationError
+    return seller_application

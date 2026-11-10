@@ -40,7 +40,7 @@ def whoami(principal: Annotated[Principal, Depends(signed_in_principal)]) -> dic
 
 
 @open_routes.get("/anything")
-def anything() -> dict[str, str]:
+def open_route() -> dict[str, str]:
     return {}
 
 

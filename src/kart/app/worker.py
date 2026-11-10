@@ -9,7 +9,7 @@ from opentelemetry import propagate, trace
 from opentelemetry.trace import SpanKind
 
 from kart.app.background_process import run_until_stopped
-from kart.app.database import create_database_engine, unit_of_work
+from kart.app.database import create_database_engine, transaction
 from kart.app.subscriptions import SUBSCRIPTIONS
 from kart.shared.inbox import record_in_inbox
 from kart.shared.kernel.event_envelope import EventEnvelope
@@ -104,9 +104,9 @@ def _handle(  # noqa: PLR0913, PLR0917 pika's four callback arguments, after two
 
 def _handle_once(engine: Engine, subscription: Subscription, event: EventEnvelope) -> None:
     """Hand the event to its handler, unless the inbox shows an earlier delivery was handled."""
-    with unit_of_work(engine, subscription.context) as session:
+    with transaction(engine, subscription.context) as session:
         if record_in_inbox(session, event.event_id):
-            subscription.handlers[event.type](session, event)
+            subscription.handlers[event.type](subscription.repository(session), event)
 
 
 def _retry_or_dead_letter(

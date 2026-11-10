@@ -44,6 +44,11 @@ def create_outbox_table() -> None:
     _outbox.create(op.get_bind())
 
 
+def drop_outbox_table() -> None:
+    """Drop the outbox from the context's schema, in the revision's downgrade."""
+    _outbox.drop(op.get_bind())
+
+
 def write_to_outbox(
     session: Session, envelope: EventEnvelope, *, aggregate_type: str, aggregate_id: UUID
 ) -> None:

@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 # A UAE Tax Registration Number.
 VatNumber = NewType("VatNumber", str)
 Iban = NewType("Iban", str)
+# Counts a Seller Application's changes, so a write based on an older one is refused.
+Version = NewType("Version", int)
 
 _VAT_NUMBER = re.compile(r"[0-9]{15}")
 _UAE_IBAN = re.compile(r"AE[0-9]{21}")
@@ -62,12 +64,13 @@ class BusinessDetails:
 class SellerApplication:
     account_id: AccountId
     seller_id: SellerId
-    details: BusinessDetails
+    business_details: BusinessDetails
     status: Status
-    # Counts the changes, so a write based on an older one is refused.
-    version: int
+    version: Version
 
-    def corrected(self, details: BusinessDetails, *, read_version: int) -> SellerApplication:
+    def corrected(
+        self, business_details: BusinessDetails, *, read_version: Version
+    ) -> SellerApplication:
         """The Seller Application with the business details the Seller corrected at the version it
         read. Unchanged details leave it, and its version, as it is.
 
@@ -75,18 +78,24 @@ class SellerApplication:
         """
         if read_version != self.version:
             raise SellerApplicationChangedError
-        if details == self.details:
+        if business_details == self.business_details:
             return self
-        return replace(self, details=details, version=self.version + 1)
+        return replace(self, business_details=business_details, version=Version(self.version + 1))
 
 
-def first_submission(account_id: AccountId, details: BusinessDetails) -> SellerApplication:
+def first_submission(account_id: AccountId, business_details: BusinessDetails) -> SellerApplication:
     """The Seller Application a Seller submits for the first time, which makes it a Seller."""
-    return SellerApplication(account_id, SellerId.new(), details, Status.PENDING, version=1)
+    return SellerApplication(
+        account_id, SellerId.new(), business_details, Status.PENDING, version=Version(1)
+    )
 
 
 class NoSellerApplicationError(Exception):
     """The Seller has submitted no Seller Application."""
+
+
+class SellerApplicationSubmittedError(Exception):
+    """The Seller has submitted a Seller Application already, so it can only correct it."""
 
 
 class SellerApplicationChangedError(Exception):

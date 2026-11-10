@@ -3,7 +3,7 @@
 import sqlalchemy as sa
 from alembic import op
 
-from kart.shared.outbox import create_outbox_table
+from kart.shared.outbox import create_outbox_table, drop_outbox_table
 
 revision = "0002"
 down_revision = "0001"
@@ -22,5 +22,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("outbox")
+    drop_outbox_table()
     op.drop_table("accounts")

@@ -1,8 +1,6 @@
 """Give the throwaway context an outbox, as a real context's revision would."""
 
-from alembic import op
-
-from kart.shared.outbox import create_outbox_table
+from kart.shared.outbox import create_outbox_table, drop_outbox_table
 
 revision = "0001"
 down_revision = None
@@ -15,4 +13,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("outbox")
+    drop_outbox_table()

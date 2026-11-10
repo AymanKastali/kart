@@ -1,4 +1,5 @@
-"""The one database engine every context shares, and the units of work they're handed.
+"""The one database engine every context shares, the transactions each context runs in, and the
+units of work its use cases are handed.
 
 Contexts never build engines: the app creates one and gives each context units of work
 for its own schema.
@@ -21,7 +22,7 @@ def create_database_engine(database_url: str) -> Engine:
 
 
 @contextmanager
-def unit_of_work(engine: Engine, context: str) -> Generator[Session]:
+def transaction(engine: Engine, context: str) -> Generator[Session]:
     """One transaction for `context`, committed if the block succeeds, else rolled back.
 
     It runs as the context's role (ADR-0008), so Postgres refuses any
@@ -41,7 +42,7 @@ def units_of_work[R](
 
     @contextmanager
     def one_unit_of_work() -> Generator[R]:
-        with unit_of_work(engine, context) as session:
+        with transaction(engine, context) as session:
             yield repository(session)
 
     return one_unit_of_work

@@ -7,7 +7,11 @@ from kart.contexts.identity.contracts import Role
 from kart.contexts.identity.domain.account import Account
 
 if TYPE_CHECKING:
-    from kart.contexts.identity.application.ports import AccountRepository, IdentityProvider
+    from kart.contexts.identity.application.ports import (
+        AccountRepository,
+        IdentityProvider,
+        ProviderAccount,
+    )
     from kart.contexts.identity.domain.account import Credentials
     from kart.shared.kernel.ids import AccountId
     from kart.shared.kernel.unit_of_work import UnitOfWork
@@ -33,7 +37,7 @@ class SellerSignUp:
         except EmailTakenError:
             self._finish_a_sign_up_that_stopped_part_way(credentials.email)
             raise
-        self._register(Account(account.account_id, Role.SELLER, account.email))
+        self._register_seller(account)
         self._identity_provider.send_email_verification(account.account_id)
         return account.account_id
 
@@ -48,10 +52,10 @@ class SellerSignUp:
         account = self._identity_provider.with_email(email)
         if account is None or account.roles != {Role.SELLER}:
             return
-        self._register(Account(account.account_id, Role.SELLER, account.email))
+        self._register_seller(account)
         if not account.email_verified:
             self._identity_provider.send_email_verification(account.account_id)
 
-    def _register(self, account: Account) -> None:
+    def _register_seller(self, account: ProviderAccount) -> None:
         with self._unit_of_work() as repository:
-            repository.register(account)
+            repository.register(Account(account.account_id, Role.SELLER, account.email))

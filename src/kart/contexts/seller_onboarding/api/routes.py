@@ -17,8 +17,10 @@ from kart.contexts.seller_onboarding.domain.seller_application import (
     NoSellerApplicationError,
     SellerApplication,
     SellerApplicationChangedError,
+    SellerApplicationSubmittedError,
     Status,
     VatNumber,
+    Version,
     parse_iban,
     parse_vat_number,
 )
@@ -36,16 +38,16 @@ class BusinessDetailsJson(BaseModel):
     iban: Annotated[Iban, AfterValidator(parse_iban)]
 
     @classmethod
-    def from_business_details(cls, details: BusinessDetails) -> BusinessDetailsJson:
+    def from_business_details(cls, business_details: BusinessDetails) -> BusinessDetailsJson:
         return cls(
-            legal_name=details.legal_name,
-            display_name=details.display_name,
-            trade_licence_number=details.trade_licence_number,
-            vat_number=details.vat_number,
-            iban=details.iban,
+            legal_name=business_details.legal_name,
+            display_name=business_details.display_name,
+            trade_licence_number=business_details.trade_licence_number,
+            vat_number=business_details.vat_number,
+            iban=business_details.iban,
         )
 
-    def business_details(self) -> BusinessDetails:
+    def to_business_details(self) -> BusinessDetails:
         return BusinessDetails(
             legal_name=self.legal_name,
             display_name=self.display_name,
@@ -58,14 +60,14 @@ class BusinessDetailsJson(BaseModel):
 class SubmissionJson(BaseModel):
     business_details: BusinessDetailsJson
     # The version of the Seller Application the Seller read and corrects; left out the first time.
-    version: int | None = None
+    version: Version | None = None
 
 
 class SellerApplicationJson(BaseModel):
     seller_id: UUID
     business_details: BusinessDetailsJson
     status: Status
-    version: int
+    version: Version
 
     @classmethod
     def from_seller_application(
@@ -73,7 +75,9 @@ class SellerApplicationJson(BaseModel):
     ) -> SellerApplicationJson:
         return cls(
             seller_id=seller_application.seller_id,
-            business_details=BusinessDetailsJson.from_business_details(seller_application.details),
+            business_details=BusinessDetailsJson.from_business_details(
+                seller_application.business_details
+            ),
             status=seller_application.status,
             version=seller_application.version,
         )
@@ -102,22 +106,22 @@ def submit_seller_application(
     principal: Annotated[Principal, Depends(signed_in_principal)],
     applications: Annotated[SellerApplications, Depends(seller_applications)],
 ) -> SellerApplicationJson:
-    details = submission.business_details.business_details()
+    business_details = submission.business_details.to_business_details()
     if submission.version is None:
-        seller_application = _first_submission(applications, principal, details)
+        seller_application = _first_submission(applications, principal, business_details)
     else:
         seller_application = _correction(
-            applications, principal, details, read_version=submission.version
+            applications, principal, business_details, read_version=submission.version
         )
     return SellerApplicationJson.from_seller_application(seller_application)
 
 
 def _first_submission(
-    applications: SellerApplications, principal: Principal, details: BusinessDetails
+    applications: SellerApplications, principal: Principal, business_details: BusinessDetails
 ) -> SellerApplication:
     try:
-        return applications.submit(principal.account_id, details)
-    except SellerApplicationChangedError:
+        return applications.submit(principal.account_id, business_details)
+    except SellerApplicationSubmittedError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "This Seller has submitted a Seller Application already: correct it at the version it "
@@ -128,12 +132,14 @@ def _first_submission(
 def _correction(
     applications: SellerApplications,
     principal: Principal,
-    details: BusinessDetails,
+    business_details: BusinessDetails,
     *,
-    read_version: int,
+    read_version: Version,
 ) -> SellerApplication:
     try:
-        return applications.correct(principal.account_id, details, read_version=read_version)
+        return applications.correct(
+            principal.account_id, business_details, read_version=read_version
+        )
     except NoSellerApplicationError:
         raise _no_seller_application() from None
     except SellerApplicationChangedError:

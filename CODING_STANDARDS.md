@@ -73,14 +73,18 @@ Kart is object-oriented Python, and its design follows the SOLID principles.
   when a rule depends on it) sits behind a **port** the use case declares in its context's
   `application/ports.py`, and an **adapter** in `infrastructure` implements it. The adapter is
   named after what it uses and the port it implements: `PostgresSellerApplicationRepository`,
-  `KeycloakIdentityProvider`.
+  `KeycloakIdentityProvider`. A port that the app or another context calls, not a use case,
+  lives in the context's `contracts` instead, as Identity's `AccessTokens` does. An event
+  handler is a use case too: the inbox hands it its context's repository, never a session.
 - **Interfaces are `typing.Protocol`s**, never `abc.ABC`. An adapter implements one by its shape
   alone, without inheriting from it, so the port never imports its adapters. The type checker
   checks the fit where the app hands the adapter in.
 - **Interface segregation.** A port holds only what its use cases call, named in the context's
   own words. Two use cases that need different things get two ports.
 - **Dependencies come in through the constructor.** No class builds its own collaborators or
-  reads settings. `kart.app` is the one place that builds adapters and hands them in.
+  reads settings. `kart.app` is the one place that builds adapters and hands them in. An adapter
+  that needs a library's client takes it too, and a function beside it builds both for the app
+  (`keycloak_access_tokens`).
 - **Open for extension.** When behaviour varies by kind (a courier, a payment method), each kind
   is a class that implements one Protocol (Strategy), so a new kind is a new class, not another
   branch in an `if` over the kinds.
